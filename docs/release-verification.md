@@ -30,7 +30,7 @@ A resumable verification scan repeated the EE balance at height 969311 and saved
 
 - Vercel CLI reports logged out / invalid authentication. The in-app browser opens the Vercel login page. A production build preflight on Node 24 failed while loading team access, before bundling or deployment.
 - There is no linked Vercel project, team ID or project ID, and no configured production database URLs or app bearer secrets.
-- The configured GitHub remote is `stefanopepe/alpen-l1-monitor`; both the connector and `gh repo view` could not access that repository. No code was pushed and no remote repository was created or changed.
+- The configured GitHub remote is `stefanopepe/alpen-l1-monitor`; both the connector and `gh repo view` could not access that repository. No code was pushed and no remote repository was created or changed. The implementation was committed locally on `codex/bootstrap-v2`.
 - Docker is installed but its daemon is unavailable on this host. The real Postgres/PgBouncer CI job is scaffolded, **not claimed as executed**. The credential-free PGlite SQL tests did run.
 - No deployed domain, production migration, production cron firing or Grafana alert has been verified. Grafana alerts, selector simulation and historical replay are outside steps 1–2.
 
@@ -38,7 +38,7 @@ A resumable verification scan repeated the EE balance at height 969311 and saved
 
 1. Sign in to the intended **paid Vercel team**, link/create `bridge-wallet-monitor-mainnet`, and confirm its team/project selection.
 2. Provide a dedicated Neon mainnet project and privately configure `MIGRATION_DATABASE_URL` (direct migrator), `DATABASE_URL` (pooled app writer) and `DATABASE_URL_METRICS` (pooled read-only role). Apply migrations and grants as documented.
-3. Generate independent random `CRON_SECRET` and `METRICS_BEARER_TOKENS`, configure them as Production secrets with `NETWORK=mainnet`, and deploy. Tokens can be generated during authenticated setup; no need to send them in chat.
+3. Independent random `CRON_SECRET` and `METRICS_BEARER_TOKENS` have been generated locally in the gitignored, mode-0600 `.env`; values were never logged. Configure them privately as Vercel Production secrets with `NETWORK=mainnet`, and deploy. The three database URL fields in that file remain blank. No secret needs to be sent in chat.
 4. Verify both wallet snapshots, allow history to converge, perform the offline inventory cross-check and observe at least two real scheduled cron runs. Supply an internal Esplora URL/auth if public throttling continues. The service remains Stage 0 until the plan's later operational gates are met.
 5. For tag-driven CI deployment, make the configured private GitHub repository accessible and add the deployment environment secrets/variables listed in the runbook. Direct CLI deployment does not require this GitHub setup.
 

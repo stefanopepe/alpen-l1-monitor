@@ -11,7 +11,7 @@ Use Node 24 and pnpm 11.25.0 (`corepack enable`).
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
-cp .env.example .env
+cp -n .env.example .env
 docker compose up -d --wait
 pnpm migrate --init-network mainnet
 pnpm dev

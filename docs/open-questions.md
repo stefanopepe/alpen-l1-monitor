@@ -5,7 +5,7 @@
 - Mainnet descriptors and six vectors are supplied and validated. No descriptor credentials are required.
 - Vercel: CLI logged out; browser redirects to login; no project/team link exists. Deployment is blocked on authenticated access to the intended paid team/project.
 - Postgres: no production runtime, read-only or migration URL is configured. A stamped Neon project (preferably Postgres 17 in us-east-1) is required.
-- Application auth tokens can be generated privately during setup; no secrets need to be pasted into chat.
+- Application auth tokens were generated privately in the gitignored, mode-0600 `.env`; database URL fields remain blank. No secrets need to be pasted into chat.
 - Q-02 internal Esplora is not a Stage 0 blocker. Public primary is visible. It remains a gate for operational reliance.
 - Q-01 real signet descriptors, externally sourced receive/change vectors, and a nonzero checkpoint remain missing. Config-only support is implemented and tested synthetically; no production signet profile is invented.
 - Grafana, alerts, selector simulation and replay are outside the human-set first release scope. Their plan questions do not block steps 1–2.
