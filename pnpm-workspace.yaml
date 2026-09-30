@@ -1,0 +1,14 @@
+storeDir: .local/pnpm-store
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@vercel/vc-native-darwin-arm64@61.1.0'
+  - '@vercel/vc-native-darwin-x64@61.1.0'
+  - '@vercel/vc-native-linux-arm64@61.1.0'
+  - '@vercel/vc-native-linux-x64@61.1.0'
+  - '@vercel/vc-native-win32-arm64@61.1.0'
+  - '@vercel/vc-native-win32-x64@61.1.0'
+  - '@vitest/mocker@5.0.3'
+  - '@vitest/spy@5.0.3'
+  - vercel@61.1.0
+  - vitest@5.0.3

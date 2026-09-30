@@ -1,0 +1,8 @@
+{
+  "mainnet": {
+    "repo": "alpenlabs/alpen",
+    "ref": "7f20dcb65fa478c9654626b77a05ea789d28806a",
+    "selector_model_version": 1,
+    "deployed_build_confirmed": false
+  }
+}

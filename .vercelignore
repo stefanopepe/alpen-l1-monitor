@@ -1,0 +1,10 @@
+.git
+.github
+.local
+.env*
+PLAN.md
+bridge-wallet-monitor-v2-brief.md
+docs
+test
+ops
+coverage

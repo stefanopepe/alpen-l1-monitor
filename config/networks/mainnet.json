@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "network": "mainnet",
+  "chain": {
+    "bech32_hrp": "bc",
+    "bip44_coin_type": 0,
+    "bip32_versions": {
+      "public": "0488b21e",
+      "private": "0488ade4"
+    },
+    "checkpoint": {
+      "height": 0,
+      "hash": "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"
+    },
+    "dust_limit_sats": 546,
+    "finality_depth": 6
+  },
+  "wallets": [
+    {
+      "id": "ee",
+      "display_name": "Alpen EE",
+      "descriptor": "wpkh([145638e2/84h/0h/0h]xpub6DXhkgumY1NGrkcT6YEakg81r5CWugPEyU61fXQTF3mySMpwBAnNUyxHJiNaM969HxJGCay7cWaEsvSWbh3VZGqCVZUkGsCpBotsasGp6Ui/<0;1>/*)#lecc6wxp",
+      "vectors": [
+        {
+          "chain": 0,
+          "index": 1,
+          "address": "bc1qm3qjapenndvyq0vgjqfv2pfwc2w27j3h480ynh"
+        },
+        {
+          "chain": 0,
+          "index": 2,
+          "address": "bc1qeuu2a0fw92y8fjk4c4jqhd98llurdm89u099fq"
+        },
+        {
+          "chain": 1,
+          "index": 0,
+          "address": "bc1qfrhdjylgn50g76tq4qmp8jmg9dtv2q28ge79wf"
+        }
+      ],
+      "vector_source": "brief \u00a74.2 (mainnet-verified)",
+      "gap_scan": {
+        "min_indices": 6,
+        "gap_limit": 20,
+        "ceiling": 50
+      }
+    },
+    {
+      "id": "ol",
+      "display_name": "Alpen OL",
+      "descriptor": "wpkh([c482a5ea/84h/0h/0h]xpub6DNMBbGP7Yr8gqmo4EMMp5fBqnh1Z5YMDC5M9rZiLQCdRp5SWEF2jefPgNroJ3fYmqWjKmTRmGiYuDTpitkxJotYgBDTg3bgNnzr57HW3fH/<0;1>/*)#qj7slk5k",
+      "vectors": [
+        {
+          "chain": 0,
+          "index": 1,
+          "address": "bc1qhc5pezg88kksj9nkdj9lwlhl2pr8vt96qtke57"
+        },
+        {
+          "chain": 0,
+          "index": 2,
+          "address": "bc1qhrpjjt92aqf4t7459hryw3cgd0385jxe3xa5l7"
+        },
+        {
+          "chain": 1,
+          "index": 0,
+          "address": "bc1qvyvrpktcwfwsrjdda5tremkyaanvxzswthr08f"
+        }
+      ],
+      "vector_source": "brief \u00a74.2 (mainnet-verified)",
+      "gap_scan": {
+        "min_indices": 6,
+        "gap_limit": 20,
+        "ceiling": 50
+      }
+    }
+  ],
+  "providers": [
+    {
+      "name": "blockstream",
+      "role": "primary",
+      "tier": "public",
+      "base_url": "https://blockstream.info/api",
+      "auth": {
+        "scheme": "none"
+      },
+      "timeout_ms": 10000,
+      "retries": 0,
+      "min_interval_ms": 1000,
+      "max_tip_lag_blocks": 2
+    },
+    {
+      "name": "mempool",
+      "role": "failover",
+      "tier": "public",
+      "base_url": "https://mempool.space/api",
+      "auth": {
+        "scheme": "none"
+      },
+      "timeout_ms": 10000,
+      "retries": 0,
+      "min_interval_ms": 1000,
+      "max_tip_lag_blocks": 2
+    }
+  ],
+  "estimator": {
+    "window_days": 30,
+    "short_window_days": 7,
+    "min_sample": 30,
+    "min_sample_short": 6,
+    "min_intervals": 30,
+    "min_intervals_short": 10
+  },
+  "collection": {
+    "interval_s": 900,
+    "lease_ttl_s": 830,
+    "max_duration_s": 800,
+    "deadline_margin_s": 60,
+    "max_requests_inventory": 250,
+    "max_requests_history": 150,
+    "history_page_cap": 20,
+    "max_tip_age_s": 10800,
+    "stale_after_s": 3300
+  },
+  "retention": {
+    "snapshots_days": 14,
+    "daily_samples_days": 30,
+    "history_days": 90,
+    "runs_days": 90
+  },
+  "upstream": {
+    "repo": "alpenlabs/alpen",
+    "ref": "7f20dcb65fa478c9654626b77a05ea789d28806a",
+    "selector_model_version": 1,
+    "deployed_build_confirmed": false
+  }
+}

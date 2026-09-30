@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:17.6
+    environment:
+      POSTGRES_USER: monitor_owner
+      POSTGRES_DB: monitor
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports: ["127.0.0.1:5432:5432"]
+    volumes:
+      - monitor_pg:/var/lib/postgresql/data
+      - ./ops/local/init.sql:/docker-entrypoint-initdb.d/001-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monitor_owner -d monitor"]
+      interval: 2s
+      retries: 30
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.24.1-p0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_NAME: monitor
+      DB_USER: monitor_owner
+      AUTH_TYPE: trust
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 100
+      DEFAULT_POOL_SIZE: 10
+    ports: ["127.0.0.1:6432:5432"]
+    volumes:
+      - ./ops/local/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+volumes:
+  monitor_pg:

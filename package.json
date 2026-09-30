@@ -1,0 +1,42 @@
+{
+  "name": "bridge-wallet-monitor",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import node --import tsx scripts/dev.ts",
+    "build": "pnpm typecheck && pnpm validate-config",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && depcruise src api --config .dependency-cruiser.cjs",
+    "test": "vitest run",
+    "check": "pnpm build && pnpm lint && pnpm test",
+    "validate-config": "node --import tsx scripts/validate-configs.ts",
+    "migrate": "node --env-file-if-exists=.env --import node --import tsx scripts/migrate.ts",
+    "collect": "node --env-file-if-exists=.env --import node --import tsx scripts/collect.ts",
+    "inspect": "node --env-file-if-exists=.env --import node --import tsx scripts/inspect.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0",
+    "@scure/bip32": "2.4.0",
+    "@vercel/functions": "3.9.9",
+    "pg": "8.23.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "5.0.3",
+    "tsx": "4.23.15",
+    "eslint": "10.11.0",
+    "typescript-eslint": "8.71.0",
+    "dependency-cruiser": "18.4.0",
+    "vercel": "61.1.0",
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "24.10.1",
+    "@types/pg": "8.15.6"
+  }
+}

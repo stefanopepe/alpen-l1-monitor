@@ -1,0 +1,7 @@
+{
+  "1": {
+    "specification": "PLAN.md P7.2 / brief 4.4",
+    "dust_limit_sats": 546,
+    "release_scope": "Spendable filter and metadata only. Full selector simulation is deferred; naive runway is labelled separately."
+  }
+}
