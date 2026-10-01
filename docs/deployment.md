@@ -1,6 +1,12 @@
 # Deploy steps 1–2 to Vercel
 
-The repository is ready for a paid-team Vercel deployment. A local build is not a deployment. The current session has no authenticated Vercel project or production database URLs; see `release-verification.md` for the recorded status.
+The production app is `https://ee-ol-wallet-monitor.vercel.app/`, in the `alpen-labs` Vercel team, backed by Neon. Local and Vercel collectors write to the same mainnet database. The steps below also document how to reproduce the setup.
+
+## Headless operation
+
+`vercel.json` schedules `GET /api/collect` every 15 minutes (`*/15 * * * *`). Vercel supplies `Authorization: Bearer <CRON_SECRET>` from its Production environment. Collection runs with the browser closed and the developer's computer off. View the job and execution logs under the project's **Settings → Cron Jobs**.
+
+For a separate scheduler on a host with this checkout, run `pnpm collect` from the repository directory with Node/pnpm available on the scheduler's PATH. It reads that host's local `.env`, writes directly to the configured `DATABASE_URL`, prints a JSON result and exits nonzero if collection fails. `pnpm collect --force` is a manual override of successful-slot deduplication; both commands still respect the shared database lease. Vercel already provides the recurring scheduler, so a second local cron is unnecessary.
 
 ## 1. Database
 
@@ -30,12 +36,17 @@ Add these **Production** environment variables through the Vercel dashboard or i
 | `DATABASE_URL_METRICS` | Neon pooled TLS URL for `monitor_read` |
 | `CRON_SECRET` | Fresh random token, at least 32 characters, no whitespace/commas |
 | `METRICS_BEARER_TOKENS` | Independent random read token; optional second token separated by a comma |
+| `ALPEN_ESPLORA_TOKEN` | Private Alpen Esplora token, raw value only (no `?token=` prefix) |
 
 Mark secret variables Sensitive. Generate tokens locally with `openssl rand -hex 32` and enter them directly into Vercel; do not paste them into chat. Do not configure `MIGRATION_DATABASE_URL` in Vercel. Preview deployments get no database URLs or cron secret. Preview routes therefore fail closed.
 
 Production app routes must be reachable without Vercel's separate deployment-authentication wall: use **Standard** protection (previews protected; production domain reachable). The app itself authenticates every data and collection route. Do not create query-string bypass credentials or remove app auth. Review any team setting that enforces protection for all deployments before switching it.
 
-Public Esplora requires no credential. To add the internal indexer, insert it as the first provider (`role: primary`, `tier: internal`), change Blockstream to failover, and reference its auth environment variable via `secret_env`. `base_url` must contain no credentials, query string or trailing slash. The internal endpoint must be reachable from Vercel. Alchemy may be configured separately for RPC-only future uses; it cannot substitute for Esplora discovery/history/inventory.
+The mainnet configuration selects the private Alpen Esplora at `https://esplora.himalayan-java-8qh3wg.alpen.org` as primary; its API paths start at the root, without `/api`. It uses `auth.scheme: query`, `parameter_name: token`, and `secret_env: ALPEN_ESPLORA_TOKEN`. The client URL-encodes the token for each outgoing request, rejects redirects, and returns sanitized errors. Keep the token out of the configured `base_url`, logs and saved reports. Bearer and custom-header authentication are also supported. Blockstream and mempool remain public failovers, each paced at one request per second; the private primary is initially paced at four requests per second.
+
+For this provider switch, put `ALPEN_ESPLORA_TOKEN` in **both** the local ignored `.env` (local collection) and **Vercel → Project → Settings → Environment Variables → Production**, marked Sensitive (cloud collection). Adding it in one place does not update the other. Deploy the updated code/configuration, then rerun `pnpm migrate --init-network mainnet` using the local direct migrator URL to synchronize the stored provider metadata. The migration command preserves wallet data and validates existing migration checksums. Verify a cloud run reports provider `alpen`; local connectivity alone does not establish Vercel connectivity.
+
+Alchemy may be configured separately for RPC-only future uses; it cannot substitute for Esplora discovery/history/inventory.
 
 ## 3. Build and deploy
 

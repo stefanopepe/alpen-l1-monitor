@@ -3,13 +3,13 @@
 ## Current steps 1–2 status
 
 - Mainnet descriptors and six vectors are supplied and validated. No descriptor credentials are required.
-- Vercel: CLI logged out; browser redirects to login; no project/team link exists. Deployment is blocked on authenticated access to the intended paid team/project.
-- Postgres: no production runtime, read-only or migration URL is configured. A stamped Neon project (preferably Postgres 17 in us-east-1) is required.
-- Application auth tokens were generated privately in the gitignored, mode-0600 `.env`; database URL fields remain blank. No secrets need to be pasted into chat.
-- Q-02 internal Esplora is not a Stage 0 blocker. Public primary is visible. It remains a gate for operational reliance.
+- Vercel: `ee-ol-wallet-monitor.vercel.app` is deployed in `alpen-labs`. A scheduled collection completed successfully. The user manages deployments through the dashboard; CLI sign-in is not required for that workflow.
+- Postgres: the stamped mainnet Neon database is initialized, with verified TLS and separate pooled collector/read-only roles. Local collection writes directly to it.
+- Application auth and database credentials are configured privately in the local `.env` and Vercel Production. No secrets need to be pasted into chat.
+- Q-02: the internal mainnet Esplora URL and query-token scheme are supplied. Both wallets collected successfully through it locally. Deployment of this provider change and cloud connectivity verification remain pending; version, server limits and rate limits are still not supplied.
 - Q-01 real signet descriptors, externally sourced receive/change vectors, and a nonzero checkpoint remain missing. Config-only support is implemented and tested synthetically; no production signet profile is invented.
 - Grafana, alerts, selector simulation and replay are outside the human-set first release scope. Their plan questions do not block steps 1–2.
-- Repository remote is `stefanopepe/alpen-l1-monitor`; ownership/visibility must be checked before pushing wallet descriptors. No remote write has been made.
+- Repository remote is the private `stefanopepe/alpen-l1-monitor`; the initial implementation is pushed to `main`.
 
 ## Plan register (preserved for later phases)
 

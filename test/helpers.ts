@@ -4,7 +4,15 @@ import { validateConfig } from '../src/config/load.js';
 import type { ChainTx } from '../src/chain/schemas.js';
 import type { ChainView } from '../src/chain/view.js';
 export const rawConfig = () => JSON.parse(readFileSync('config/networks/mainnet.json', 'utf8'));
-export const config = () => validateConfig(rawConfig(), 'mainnet', false);
+export const config = () => {
+  const input = rawConfig();
+  // Offline scan fixtures use fixed providers, independent of deployment credentials.
+  input.providers = [
+    { name: 'blockstream', role: 'primary', base_url: 'https://blockstream.info/api' },
+    { name: 'mempool', role: 'failover', base_url: 'https://mempool.space/api' },
+  ].map(p => ({ ...p, tier: 'public', auth: { scheme: 'none' }, timeout_ms: 10000, retries: 0, min_interval_ms: 1000, max_tip_lag_blocks: 2 }));
+  return validateConfig(input, 'mainnet', false);
+};
 export const hash = (n: number) => n.toString(16).padStart(64, '0');
 export const utxo = (valueSats: number, confirmed = true, scriptType: Utxo['scriptType'] = 'p2wpkh', index = valueSats): Utxo => ({ txid: hash(index), vout: 0, valueSats, confirmed, blockHeight: confirmed ? 100 : null, address: 'wallet', chain: 0, index: 0, scriptType });
 export const settlement = (index: number, cost = 1500): Settlement => ({ txid: hash(index), height: 100 + index, blockTime: 1000000 + index * 7200, complete: true, drainSats: cost, feeSats: cost - 546, weight: 1200 });

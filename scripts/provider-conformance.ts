@@ -5,17 +5,14 @@ import { safeError } from '../src/chain/errors.js';
 import { z } from 'zod';
 import { safeInt, utxosSchema } from '../src/chain/schemas.js';
 import type { AddressRecord } from '../src/types.js';
+import { providerRequest } from '../src/chain/request.js';
 const { config: cfg } = loadConfig();
 const p = cfg.providers[0]!;
-const headers: Record<string, string> = {};
-if (p.auth.scheme !== 'none') {
-  const value = process.env[p.auth.secret_env]!;
-  headers[p.auth.scheme === 'bearer' ? 'authorization' : p.auth.header_name] = p.auth.scheme === 'bearer' ? `Bearer ${value}` : value;
-}
 let last = 0;
 async function get(path: string, plain = false): Promise<unknown> {
   await new Promise(resolve => setTimeout(resolve, Math.max(0, last + p.min_interval_ms - Date.now()))); last = Date.now();
-  const response = await fetch(`${p.base_url}${path}`, { headers, redirect: 'error', signal: AbortSignal.timeout(p.timeout_ms) });
+  const { url, headers } = providerRequest(p, path);
+  const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(p.timeout_ms) });
   if (!response.ok) throw new Error('E_CONFORMANCE_HTTP');
   return plain ? (await response.text()).trim() : response.json();
 }

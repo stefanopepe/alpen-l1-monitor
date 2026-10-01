@@ -6,6 +6,7 @@ const auth = z.discriminatedUnion('scheme', [
   z.object({ scheme: z.literal('none') }).strict(),
   z.object({ scheme: z.literal('bearer'), secret_env: z.string().regex(/^[A-Z][A-Z0-9_]*$/) }).strict(),
   z.object({ scheme: z.literal('header'), secret_env: z.string().regex(/^[A-Z][A-Z0-9_]*$/), header_name: z.string().regex(/^[A-Za-z0-9-]+$/) }).strict(),
+  z.object({ scheme: z.literal('query'), secret_env: z.string().regex(/^[A-Z][A-Z0-9_]*$/), parameter_name: z.string().regex(/^[A-Za-z0-9_-]+$/) }).strict(),
 ]);
 export const providerSchema = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/), role: z.enum(['primary', 'failover']), tier: z.enum(['internal', 'public']),

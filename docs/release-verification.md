@@ -41,22 +41,24 @@ Concurrent cron, manual-refresh and CLI calls all skipped while the collection l
 
 **HTTP duration limitation:** the original Node `fetch` smoke client failed before receiving the roughly 439-second refresh response; Node's default headers timeout is 300 seconds. The successful server-side run and all three output formats were subsequently verified independently. The original long-running refresh HTTP response is not counted as a passed check. A repeat of that request needs an HTTP client configured to wait for the full collection duration. The normal 18-check smoke suite uses short requests and passed.
 
-The local report is retained under ignored `.local/smoke/live-report.json`. The real OL fixture was extracted from this collected history without further provider requests. Production scheduling, history convergence and a same-tip independent provider-conformance run remain unverified.
+The local report is retained under ignored `.local/smoke/live-report.json`. The real OL fixture was extracted from this collected history without further provider requests. The production checks below were performed subsequently.
 
-## Deployment status: blocked, not deployed
+## Production deployment and private-provider switch
 
-- Vercel CLI reports logged out (rechecked October 1). The previous in-app browser check opened the Vercel login page. A production build preflight on Node 24 failed while loading team access, before bundling or deployment.
-- There is no linked Vercel project, team ID or project ID, and no configured production database URLs. Independent bearer secrets exist only in the ignored local `.env`; production secrets still need configuring.
-- The implementation was pushed to `stefanopepe/alpen-l1-monitor`, branch `codex/bootstrap-v2`, using smart-card SSH authentication. GitHub CLI/connector credentials lack access; successful SSH access and push do not depend on them.
-- The Docker runtime was started for the October 1 smoke test. This host lacks Compose and references an unavailable Docker Desktop credential helper, so isolated Docker settings and disposable containers using the repository's pinned images were used. Real PostgreSQL/PgBouncer checks passed locally; remote CI execution is not claimed as verified.
-- No deployed domain, production migration, production cron firing or Grafana alert has been verified. Grafana alerts, selector simulation and historical replay are outside steps 1–2.
+- `https://ee-ol-wallet-monitor.vercel.app/` is deployed in the `alpen-labs` team and reads the mainnet Neon database. Neon reports PostgreSQL 18.6. Migrations, network binding, pooled TLS connections, separate collector/read roles and rejection of writes by the reader were verified. Secrets remain outside Git.
+- Production JSON, text and Prometheus reads returned 200 with matching persisted inventories. Missing and wrong-role credentials returned 401. Concurrent collection skipped while the database lease was held.
+- The first cloud collection completed from **14:21:00 to 14:28:15 UTC** on October 1. A local collector subsequently wrote directly to the same Neon database; production served those snapshots. OL history became complete; EE history remains resumable and incomplete.
+- Runs arrived at the expected **14:30** and **14:45 UTC** cron slots without a manual trigger from this session. The first skipped because local collection held the lease. The second successfully collected both wallets from **14:45:19 to 14:50:13 UTC**. This establishes one successful unattended collection plus a correctly skipped scheduled invocation, not two successful scheduled collections.
+- The supplied private Alpen Esplora authenticated using `?token=…`; `/blocks/tip/hash` and the Bitcoin mainnet genesis checkpoint succeeded at the root API path. Query authentication now uses an environment variable, URL-encodes the value per request, rejects redirects and sanitizes errors. Both the collector and independent conformance script use the same authentication construction.
+- A local run through provider `alpen` successfully collected both wallets from **14:51:48 to 14:53:19 UTC**, about 91 seconds, and the production status endpoint served these fresh snapshots. The preceding public-provider collection took about 294 seconds. These timings cover different moments/history progress and are observations, not a controlled benchmark. EE history remains incomplete; OL is complete.
+- After the private-provider change, **75 tests across eight files**, strict type checking, configuration/vector validation, lint and dependency boundaries passed. New cases cover query encoding, existing header authentication, missing credentials, redirect/error redaction and refusal to embed credentials in the configured base URL. Source files were checked against the actual token without printing it.
+- **The private-provider code is not yet deployed to Vercel.** The user will add the Sensitive Production token and deploy through the dashboard. Until then, Vercel's collector still uses the previous public-provider configuration. No CLI sign-in or deployment was completed; the CLI login was cancelled at the user's preference.
 
-## Exact remaining setup
+## Remaining verification and deployment work
 
-1. Sign in to the intended **paid Vercel team**, link/create `bridge-wallet-monitor-mainnet`, and confirm its team/project selection.
-2. Provide a dedicated Neon mainnet project and privately configure `MIGRATION_DATABASE_URL` (direct migrator), `DATABASE_URL` (pooled app writer) and `DATABASE_URL_METRICS` (pooled read-only role). Apply migrations and grants as documented.
-3. Independent random `CRON_SECRET` and `METRICS_BEARER_TOKENS` have been generated locally in the gitignored, mode-0600 `.env`; values were never logged. Configure them privately as Vercel Production secrets with `NETWORK=mainnet`, and deploy. The three database URL fields in that file remain blank. No secret needs to be sent in chat.
-4. Verify both wallet snapshots, allow history to converge, perform the offline inventory cross-check and observe at least two real scheduled cron runs. Supply an internal Esplora URL/auth if public throttling continues. The service remains Stage 0 until the plan's later operational gates are met.
-5. For tag-driven CI deployment, add the deployment environment secrets/variables listed in the runbook to the private GitHub repository. Direct CLI deployment does not require this GitHub setup.
+1. Add `ALPEN_ESPLORA_TOKEN` in Vercel Production and create a deployment from the updated `main` commit. Redeploying the old commit does not include query authentication.
+2. Synchronize database provider metadata with `pnpm migrate --init-network mainnet` after deployment, then verify a cloud collection reports provider `alpen`. Local success alone does not prove cloud connectivity.
+3. Allow EE history to converge, perform the independent same-tip inventory cross-check and observe another successful scheduled run. Grafana alerts, selector simulation and historical replay remain outside steps 1–2.
+4. For tag-driven CI deployment, add the deployment environment secrets/variables listed in the runbook to the private GitHub repository. Dashboard deployment does not require CLI sign-in.
 
 Detailed commands and role permissions are in [deployment.md](deployment.md).

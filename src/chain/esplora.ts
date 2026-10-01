@@ -3,6 +3,7 @@ import type { ProviderConfig } from '../config/schema.js';
 import { blockSchema, hashSchema, outspendSchema, statsSchema, statusSchema, txSchema, utxosSchema } from './schemas.js';
 import { ProviderError } from './errors.js';
 import type { ChainView } from './view.js';
+import { providerRequest } from './request.js';
 export class Budget {
   used = 0;
   constructor(readonly deadline: number, readonly max: number, readonly provider: string) {}
@@ -19,15 +20,10 @@ export class Esplora implements ChainView {
       const pause = Math.max(0, this.lastRequest + this.config.min_interval_ms - Date.now());
       if (pause) await new Promise(resolve => setTimeout(resolve, Math.min(pause, Math.max(0, this.budget.deadline - Date.now()))));
       this.budget.take(); this.lastRequest = Date.now();
-      const headers: Record<string, string> = { accept: plain ? 'text/plain' : 'application/json' };
-      const auth = this.config.auth;
-      if (auth.scheme !== 'none') {
-        const secret = process.env[auth.secret_env];
-        if (!secret || /[\r\n]/.test(secret)) throw new Error('E_PROVIDER_SECRET_MISSING');
-        headers[auth.scheme === 'bearer' ? 'authorization' : auth.header_name] = auth.scheme === 'bearer' ? `Bearer ${secret}` : secret;
-      }
+      const request = providerRequest(this.config, path);
+      const headers = { accept: plain ? 'text/plain' : 'application/json', ...request.headers };
       try {
-        const response = await this.fetcher(`${this.config.base_url}${path}`, {
+        const response = await this.fetcher(request.url, {
           headers, redirect: 'error', cache: 'no-store',
           signal: AbortSignal.timeout(Math.max(1, Math.min(this.config.timeout_ms, this.budget.deadline - Date.now()))),
         });

@@ -75,8 +75,23 @@
   ],
   "providers": [
     {
-      "name": "blockstream",
+      "name": "alpen",
       "role": "primary",
+      "tier": "internal",
+      "base_url": "https://esplora.himalayan-java-8qh3wg.alpen.org",
+      "auth": {
+        "scheme": "query",
+        "secret_env": "ALPEN_ESPLORA_TOKEN",
+        "parameter_name": "token"
+      },
+      "timeout_ms": 10000,
+      "retries": 0,
+      "min_interval_ms": 250,
+      "max_tip_lag_blocks": 2
+    },
+    {
+      "name": "blockstream",
+      "role": "failover",
       "tier": "public",
       "base_url": "https://blockstream.info/api",
       "auth": {
