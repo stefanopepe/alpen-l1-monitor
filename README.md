@@ -50,6 +50,8 @@ Mainnet selects the private Alpen Esplora using `ALPEN_ESPLORA_TOKEN`, with Bloc
 
 ## Verification and deployment
 
+Production follows release tags (`vMAJOR.MINOR.PATCH`), each matching `package.json`'s version. Pushing a tag runs validation, database migrations and deployment to the existing Vercel project. Pushing or merging `main` does not deploy. Complete the one-time [GitHub release setup](docs/deployment.md#3-release-tags-and-deployment) before pushing the first tag.
+
 `pnpm check` runs strict type checking, config/vector validation, lint, import-boundary checks and focused tests. SQL tests run in embedded Postgres (PGlite) without credentials; CI also runs them against Postgres 17 through transaction-mode PgBouncer. `pnpm inspect --resume` performs a real read-only scan, preserving progress under gitignored `.local/inspection`; it never touches the database. `node --env-file-if-exists=.env --import tsx scripts/provider-conformance.ts` independently cross-checks `/utxo` totals against aggregate arithmetic offline, using the saved inspection address set. Aggregate arithmetic never enters the collector. `pnpm collect --force` uses the production collector and configured write database.
 
 [Deployment runbook](docs/deployment.md) covers Vercel, Neon, secrets, migrations, role grants, smoke checks and cron verification. [Release verification](docs/release-verification.md) records what was actually tested. [Open questions](docs/open-questions.md) separates current setup blockers from later plan gates.

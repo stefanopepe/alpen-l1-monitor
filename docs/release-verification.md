@@ -58,13 +58,19 @@ The local report is retained under ignored `.local/smoke/live-report.json`. The 
 
 The user explicitly requested public dashboard/read APIs on October 1. The read-token input is removed and the page loads stored status automatically. The status JSON/text and Prometheus handlers no longer require a bearer token. Cron and manual-refresh authentication, read-only database access and server-side provider credentials remain in place.
 
-All **75 tests** plus type checking, config validation and lint passed after this change. Integration checks served persisted JSON, text and metrics without any authorization header while forbidding upstream calls. The **18 HTTP smoke checks** passed, including protected collection and missing-storage behavior. A local browser automatically displayed both real Neon wallet snapshots without token entry. Deployment of this update remains pending.
+All **75 tests** plus type checking, config validation and lint passed after this change. Integration checks served persisted JSON, text and metrics without any authorization header while forbidding upstream calls. The **18 HTTP smoke checks** passed, including protected collection and missing-storage behavior. A local browser automatically displayed both real Neon wallet snapshots without token entry.
+
+## Production verification after deploying `db73e0c`
+
+At **15:31:46 UTC on October 1**, the production HTML matched the public-read update: no read-token input, with authenticated Operator controls retained. Unauthenticated JSON, text and Prometheus reads all returned **200**; unauthenticated collection and manual refresh returned **401**.
+
+Scheduled run `267b5a4c-f551-41f8-a542-2828e6496f5b` completed successfully from **15:30:19.645 to 15:31:02.136 UTC**, about 42 seconds. Both wallets used provider **`alpen`**, had complete history and available runway, and were fresh at verification time. This supersedes the earlier pending-cloud-provider and incomplete-EE-history observations. The direct migration command synchronized the database's provider metadata with the private-primary configuration.
 
 ## Remaining verification and deployment work
 
-1. Ensure `ALPEN_ESPLORA_TOKEN` is saved in Vercel Production and create a deployment from the newest `main` commit, including both query authentication and public reads. Verify the deployment's source commit; redeploying an older commit does not include either change.
-2. Synchronize database provider metadata with `pnpm migrate --init-network mainnet` after deployment, then verify a cloud collection reports provider `alpen`. Local success alone does not prove cloud connectivity.
-3. Allow EE history to converge and perform the independent same-tip inventory cross-check. Grafana alerts, selector simulation and historical replay remain outside steps 1–2.
-4. For tag-driven CI deployment, add the deployment environment secrets/variables listed in the runbook to the private GitHub repository. Dashboard deployment does not require CLI sign-in.
+The release-tag workflow passed `actionlint` 1.7.12 and 18 local guard cases covering stable tag formats, missing deployment configuration and tag/app-version agreement. Exact tag checkout and the required manual tag input were also verified. No deployment credentials were used in these checks.
+
+1. For tag-driven CI deployment, configure GitHub environment `production-mainnet` with the two secrets and two variables listed in the runbook, then push the first matching version tag. The workflow is prepared; a successful tag-triggered cloud deployment remains unverified.
+2. Perform the independent same-tip inventory cross-check. Grafana alerts, selector simulation and historical replay remain outside steps 1–2.
 
 Detailed commands and role permissions are in [deployment.md](deployment.md).

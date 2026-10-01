@@ -47,19 +47,45 @@ For this provider switch, put `ALPEN_ESPLORA_TOKEN` in **both** the local ignore
 
 Alchemy may be configured separately for RPC-only future uses; it cannot substitute for Esplora discovery/history/inventory.
 
-## 3. Build and deploy
+## 3. Release tags and deployment
 
-For dashboard deployment, select the project, open **Deployments → ⋯ → Create Deployment**, and choose the latest commit on **main**, with the Production branch/environment configuration. Verify the displayed source commit matches the intended update. Redeploying an older deployment rebuilds that older source; it does not pick up the new main-branch commit. This is the [Vercel dashboard deployment flow](https://vercel.com/changelog/manually-create-deployments-by-commit-or-branch-in-the-dashboard).
+Production releases use **Git tags** in `vMAJOR.MINOR.PATCH` format, matching `package.json`'s version. Pushing a tag triggers `.github/workflows/deploy.yml`: it checks out that exact tag, validates the version and deployment configuration, runs `pnpm check` and `pnpm smoke`, applies additive database migrations, then deploys to the existing production project. Vercel deployment metadata records `releaseTag` and `releaseCommit`. A GitHub Release page is optional; the tag push is the trigger.
 
-For CLI deployment:
+Git automatic deployment is disabled in `vercel.json`, so merging or pushing `main` does not change production. This follows [Vercel's tag deployment approach](https://vercel.com/kb/guide/can-you-deploy-based-on-tags-releases-on-vercel).
+
+### One-time GitHub configuration
+
+Open the **GitHub repository → Settings → Environments**, and create or open **`production-mainnet`**. Add the following items **inside that GitHub environment**:
+
+| Kind | Name | Exact source |
+|---|---|---|
+| Environment secret | `VERCEL_TOKEN` | Create a token on the [Vercel account Tokens page](https://vercel.com/account/tokens), named `wallet-monitor-github`. Scope it to `alpen-labs` / `ee-ol-wallet-monitor` if project scope is offered, otherwise the `alpen-labs` team. Copy the raw token here. |
+| Environment secret | `MIGRATION_DATABASE_URL` | Copy the value of `MIGRATION_DATABASE_URL` from this checkout's local `.env`, without the surrounding quotes. This is the existing Neon **direct/unpooled schema-owner** URL. Set its `sslmode` parameter to `verify-full`. |
+| Environment variable | `VERCEL_ORG_ID` | **Vercel → alpen-labs team → Settings → General → Team ID**. Copy the `team_…` ID, not the team name. |
+| Environment variable | `VERCEL_PROJECT_ID` | **Vercel → ee-ol-wallet-monitor project → Settings → General → Project ID**. Copy the `prj_…` ID, not the project name. |
+
+These four entries configure GitHub's deployment job. The application's existing database, Esplora and cron variables stay in **Vercel Production** as listed above. No Vercel installation or sign-in on the developer's Mac is required. The workflow uses the pinned CLI on GitHub's runner. See [Vercel's token instructions](https://vercel.com/kb/guide/how-do-i-use-a-vercel-api-access-token).
+
+### Publish a version
+
+For the first tag, the current app version is `2.0.0`; after the GitHub environment is configured and this workflow is on `main`, run from the repository:
 
 ```sh
-pnpm install --frozen-lockfile
-NETWORK=mainnet pnpm check
-pnpm exec vercel deploy --prod
+git switch main
+git pull --ff-only origin main
+git tag -a v2.0.0 -m "Release v2.0.0"
+git push origin v2.0.0
 ```
 
-For the established release path, configure GitHub environment `production-mainnet` with secrets `MIGRATION_DATABASE_URL` and `VERCEL_TOKEN`, and variables `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`. The workflow in `.github/workflows/deploy.yml` validates, migrates and deploys a `v*` tag or a manual dispatch. Git automatic deployment is disabled in `vercel.json`, so an ordinary main-branch merge does not change production.
+For subsequent releases, bump `package.json`'s version and update the changelog, commit and push those changes to `main`, then create and push a new matching tag. Never move an existing release tag. An ordinary commit alone does not publish a release.
+
+Follow **GitHub → Actions → Deploy mainnet release**; the run title identifies the version. After it succeeds, verify the production domain using the checks below. If setup was missing on the first attempt, add the missing entries and rerun the failed job.
+
+For a deliberate redeployment or rollback, use **Actions → Deploy mainnet release → Run workflow**, keep the workflow branch on **main**, and enter the existing tag in the required `tag` field. The workflow checks out that tag's code. Rollbacks require compatibility with already-applied additive migrations. Older commits without the updated workflow cannot initiate tag deployments themselves; manual dispatch uses the workflow from `main`.
+
+### Dashboard fallback
+
+If a manual dashboard deployment is necessary, open **Vercel → Deployments → ⋯ → Create Deployment** and select the exact release commit for Production. Verify the displayed source commit matches the tag. Redeploying an older deployment rebuilds that older source; it does not pick up a new main-branch commit. See the [Vercel dashboard deployment flow](https://vercel.com/changelog/manually-create-deployments-by-commit-or-branch-in-the-dashboard).
 
 Keep the repository **private**: it contains watch-only descriptors and the supplied plan/brief. If it must become public, first externalise descriptor strings and remove private wallet details from documentation/history; do not simply change visibility. Smart-card SSH access to the GitHub remote works. The available CLI/connector API credentials cannot access it, so configure deployment secrets through the repository settings or use direct Vercel CLI deployment once Vercel and database access exist.
 

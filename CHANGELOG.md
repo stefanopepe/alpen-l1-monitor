@@ -2,6 +2,7 @@
 
 ## Unreleased — public reads and private Esplora
 
+- Require an explicit stable version tag for production releases and manual workflow runs; validate it against the app version and record the tag/commit in Vercel deployment metadata.
 - Make the dashboard and JSON/text/Prometheus reads public at the user's request. Load status on page open; place authenticated manual collection under Operator controls.
 - Remove the obsolete metrics bearer requirement while preserving the read-only database role and cron/refresh authentication.
 - Add environment-backed query-token authentication and select the supplied private Alpen Esplora as mainnet primary, with public failovers.

@@ -1,8 +1,14 @@
 name: Deploy mainnet release
+run-name: Deploy ${{ inputs.tag || github.ref_name }} to production
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to deploy (for example v2.0.0)'
+        required: true
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -14,23 +20,52 @@ jobs:
     environment: production-mainnet
     env:
       NETWORK: mainnet
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
     steps:
+      - name: Validate release tag and deployment configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo '::error::Choose a stable release tag in vMAJOR.MINOR.PATCH format.'
+            exit 1
+          fi
+          for name in VERCEL_ORG_ID VERCEL_PROJECT_ID VERCEL_TOKEN MIGRATION_DATABASE_URL; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing $name in the production-mainnet GitHub environment."
+              exit 1
+            fi
+          done
       - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - name: Match release tag to app version
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
+          if (process.env.RELEASE_TAG !== `v${version}`) {
+            console.error('::error::The release tag must match package.json version.');
+            process.exit(1);
+          }
+          NODE
       - uses: pnpm/action-setup@v4
         with:
           version: 11.25.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - run: pnpm smoke
       - name: Apply additive migrations over direct connection
         run: pnpm migrate --init-network mainnet
         env:
           MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
       - name: Deploy production functions and cron
-        run: pnpm exec vercel deploy --prod --yes --token "$VERCEL_TOKEN"
+        run: pnpm exec vercel deploy --prod --yes --meta "releaseTag=$RELEASE_TAG" --meta "releaseCommit=$(git rev-parse HEAD)"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
