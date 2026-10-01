@@ -1,6 +1,6 @@
 # bridge-wallet-monitor v2
 
-A watch-only Bitcoin wallet monitor for Alpen EE and OL. This first release implements the user's settled steps 1–2: correct Esplora inventory, an explicitly **naive** runway estimate, authenticated text/JSON and Prometheus output, a 15-minute collector, manual refresh, and Vercel deployment configuration.
+A watch-only Bitcoin wallet monitor for Alpen EE and OL. This first release implements the user's settled steps 1–2: correct Esplora inventory, an explicitly **naive** runway estimate, public text/JSON and Prometheus output, a 15-minute collector, authenticated manual refresh, and Vercel deployment configuration.
 
 `PLAN.md` remains the authoritative detailed specification. The user's release scope narrows it: selector simulation, quantile confidence bounds, Grafana alerting, upstream drift monitoring and historical replay are deferred. This is Stage 0 observation, not the plan's M-1 alert milestone. See [scope and decisions](docs/decisions.md).
 
@@ -18,7 +18,7 @@ pnpm migrate --init-network mainnet
 pnpm dev
 ```
 
-Fill **independent**, random, at least 32-character `CRON_SECRET` and `METRICS_BEARER_TOKENS` values in `.env`. Generate each privately with `openssl rand -hex 32`. Open `http://localhost:3000`, enter the read token, and use the separate refresh token to collect. Token values are not persisted by the page. Never put tokens in URLs or paste them into issues/chat.
+Fill a random, at least 32-character `CRON_SECRET` in `.env`; generate it privately with `openssl rand -hex 32`. Add `ALPEN_ESPLORA_TOKEN` for the private provider. Open `http://localhost:3000`: the latest stored status loads automatically, without a token. **Operator controls** contains the refresh-token field for manual collection. The page clears that token after use and does not persist it. Database and Esplora credentials stay server-side. `METRICS_BEARER_TOKENS` is no longer used.
 
 Docker's trust authentication is strictly for this disposable, loopback-bound development setup. Production requires separate authenticated TLS database connections and least-privilege roles.
 
@@ -28,14 +28,14 @@ Docker's trust authentication is strictly for this disposable, loopback-bound de
 
 | Endpoint | Authentication | Effect |
 |---|---|---|
-| `GET /api/status` | Metrics bearer token | Latest stored JSON with timestamps and stale flags |
-| `GET /api/status?format=text` | Metrics bearer token | Human-readable inventory and naive runway |
-| `GET /api/metrics` | Metrics bearer token | Prometheus text; liveness always emitted for both wallets |
+| `GET /api/status` | Public | Latest stored JSON with timestamps and stale flags |
+| `GET /api/status?format=text` | Public | Human-readable inventory and naive runway |
+| `GET /api/metrics` | Public | Prometheus text; liveness always emitted for both wallets |
 | `GET /api/collect` | Cron secret | Periodic collection; successful slots deduplicated |
 | `POST /api/refresh` | Cron secret | Collect immediately; bypasses slot dedupe, never the lease |
 | `GET /api/collect?force=1` | Cron secret | CLI/cron equivalent of manual refresh |
 
-Authentication uses the `Authorization: Bearer …` header. Read tokens cannot collect. `METRICS_BEARER_TOKENS` supports up to two comma-separated tokens for rotation. Missing/malformed credentials fail closed. Responses have `Cache-Control: private, no-store`. Read endpoints use the read-only database URL and never call Esplora, RPC or the collector. A database failure returns 503; a stored stale snapshot stays readable and visibly stale.
+Collection authentication uses `Authorization: Bearer <CRON_SECRET>` and rejects missing, incorrect or malformed credentials. Reading needs no authentication. Responses retain `Cache-Control: private, no-store` to avoid serving cached freshness indicators; that cache policy does not restrict access. Read endpoints use the read-only database URL and never call Esplora, RPC or the collector. A database failure returns 503; a stored stale snapshot stays readable and visibly stale.
 
 ## What is measured
 

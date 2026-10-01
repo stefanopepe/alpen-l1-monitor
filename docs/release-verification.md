@@ -2,7 +2,7 @@
 
 ## Implemented locally
 
-Mainnet EE/OL descriptor derivation and dual-chain discovery; exact inventory partition and stale timestamps; bounded resumable confirmed settlement sampling; explicitly naive spendable runway; separate authenticated JSON/text/Prometheus reads; cron collection and manual refresh; Postgres migrations, fencing, slot deduplication and retention; Vercel configuration and CI/deployment workflows. Signet is configuration-driven but not operationally configured. Replay has a reusable chain interface and pure snapshot boundary, not an implemented replay command.
+Mainnet EE/OL descriptor derivation and dual-chain discovery; exact inventory partition and stale timestamps; bounded resumable confirmed settlement sampling; explicitly naive spendable runway; public JSON/text/Prometheus reads; authenticated cron collection and manual refresh; Postgres migrations, fencing, slot deduplication and retention; Vercel configuration and CI/deployment workflows. Signet is configuration-driven but not operationally configured. Replay has a reusable chain interface and pure snapshot boundary, not an implemented replay command. Older verification entries below describe the authentication policy in effect when those checks ran.
 
 ## Executed checks
 
@@ -52,13 +52,19 @@ The local report is retained under ignored `.local/smoke/live-report.json`. The 
 - The supplied private Alpen Esplora authenticated using `?token=…`; `/blocks/tip/hash` and the Bitcoin mainnet genesis checkpoint succeeded at the root API path. Query authentication now uses an environment variable, URL-encodes the value per request, rejects redirects and sanitizes errors. Both the collector and independent conformance script use the same authentication construction.
 - A local run through provider `alpen` successfully collected both wallets from **14:51:48 to 14:53:19 UTC**, about 91 seconds, and the production status endpoint served these fresh snapshots. The preceding public-provider collection took about 294 seconds. These timings cover different moments/history progress and are observations, not a controlled benchmark. EE history remains incomplete; OL is complete.
 - After the private-provider change, **75 tests across eight files**, strict type checking, configuration/vector validation, lint and dependency boundaries passed. New cases cover query encoding, existing header authentication, missing credentials, redirect/error redaction and refusal to embed credentials in the configured base URL. Source files were checked against the actual token without printing it.
-- **The private-provider code is not yet deployed to Vercel.** The user will add the Sensitive Production token and deploy through the dashboard. Until then, Vercel's collector still uses the previous public-provider configuration. No CLI sign-in or deployment was completed; the CLI login was cancelled at the user's preference.
+- **The private-provider code is not yet verified on Vercel.** After the user reported redeployment, the **15:00:19–15:05:13 UTC** scheduled run succeeded for both wallets but used Blockstream. Both snapshots' configuration fingerprints exactly match the old public-provider configuration, with zero Alpen errors. The observed cloud run therefore used old code, rather than failing over from Alpen. The database's provider display flag was restored to public to match the active deployment. The **14:45** and **15:00 UTC** runs now establish two successful scheduled collections about 15 minutes apart. The user manages deployments through the dashboard; no CLI sign-in was completed.
+
+## Public-read update
+
+The user explicitly requested public dashboard/read APIs on October 1. The read-token input is removed and the page loads stored status automatically. The status JSON/text and Prometheus handlers no longer require a bearer token. Cron and manual-refresh authentication, read-only database access and server-side provider credentials remain in place.
+
+All **75 tests** plus type checking, config validation and lint passed after this change. Integration checks served persisted JSON, text and metrics without any authorization header while forbidding upstream calls. The **18 HTTP smoke checks** passed, including protected collection and missing-storage behavior. A local browser automatically displayed both real Neon wallet snapshots without token entry. Deployment of this update remains pending.
 
 ## Remaining verification and deployment work
 
-1. Add `ALPEN_ESPLORA_TOKEN` in Vercel Production and create a deployment from the updated `main` commit. Redeploying the old commit does not include query authentication.
+1. Ensure `ALPEN_ESPLORA_TOKEN` is saved in Vercel Production and create a deployment from the newest `main` commit, including both query authentication and public reads. Verify the deployment's source commit; redeploying an older commit does not include either change.
 2. Synchronize database provider metadata with `pnpm migrate --init-network mainnet` after deployment, then verify a cloud collection reports provider `alpen`. Local success alone does not prove cloud connectivity.
-3. Allow EE history to converge, perform the independent same-tip inventory cross-check and observe another successful scheduled run. Grafana alerts, selector simulation and historical replay remain outside steps 1–2.
+3. Allow EE history to converge and perform the independent same-tip inventory cross-check. Grafana alerts, selector simulation and historical replay remain outside steps 1–2.
 4. For tag-driven CI deployment, add the deployment environment secrets/variables listed in the runbook to the private GitHub repository. Dashboard deployment does not require CLI sign-in.
 
 Detailed commands and role permissions are in [deployment.md](deployment.md).

@@ -1,11 +1,58 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bridge wallet monitor</title>
-<style>body{font:16px system-ui;max-width:48rem;margin:4rem auto;padding:0 1.5rem;color:#1b2533;background:#f6f8fa}h1{font-size:2rem}input,button{font:inherit;padding:.65rem;border:1px solid #a4afbc;border-radius:.3rem}input{width:65%}button{cursor:pointer;background:#173c55;color:white}pre{white-space:pre-wrap;padding:1.5rem;background:white;border:1px solid #d5dde5;line-height:1.65}small{color:#596b7b}label{display:block;margin-top:1.5rem}</style>
-<h1>Bridge wallet monitor <small>v2</small></h1><p>EE and OL wallet inventory. Naive runway is an observation-based estimate. Every reading shows its collection time.</p>
-<label for="read">Read token</label><input id="read" type="password" autocomplete="off" placeholder="Metrics bearer token"> <button id="load">Load status</button>
-<label for="write">Refresh token</label><input id="write" type="password" autocomplete="off" placeholder="Cron secret"> <button id="refresh">Refresh now</button>
-<p><small>Tokens stay in this page's memory. Refresh can take several minutes. Repeated refreshes cannot overlap an active collection.</small></p><pre id="out" aria-live="polite">Enter a read token to load the latest stored snapshot.</pre>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bridge wallet monitor</title>
+<style>
+body{font:16px system-ui;max-width:48rem;margin:4rem auto;padding:0 1.5rem;color:#1b2533;background:#f6f8fa}
+h1{font-size:2rem}input,button{font:inherit;padding:.65rem;border:1px solid #a4afbc;border-radius:.3rem}
+input{width:min(65%,24rem)}button{cursor:pointer;background:#173c55;color:white}button:disabled{opacity:.6;cursor:wait}
+pre{white-space:pre-wrap;padding:1.5rem;background:white;border:1px solid #d5dde5;line-height:1.65}
+small{color:#596b7b}label{display:block;margin-top:1rem}details{margin-top:1.5rem}summary{cursor:pointer}
+</style>
+<h1>Bridge wallet monitor <small>v2</small></h1>
+<p>EE and OL wallet inventory. Naive runway is an observation-based estimate. Every reading shows its collection time.</p>
+<p><small>Collection runs automatically every 15 minutes. Reload to see the latest saved data.</small></p>
+<button id="load">Reload status</button>
+<pre id="out" aria-live="polite">Loading wallet status…</pre>
+<details>
+  <summary>Operator controls</summary>
+  <label for="write">Refresh token</label>
+  <input id="write" type="password" autocomplete="off" placeholder="Cron secret">
+  <button id="refresh">Collect now</button>
+  <p><small>Manual collection requires the operator token and can take several minutes. The token stays in this page's memory and is cleared after use.</small></p>
+</details>
 <script>
-const out=document.getElementById('out');
-document.getElementById('load').onclick=async()=>{try{const r=await fetch('/api/status?format=text',{headers:{Authorization:'Bearer '+document.getElementById('read').value},cache:'no-store'});out.textContent=await r.text()}catch{out.textContent='Unable to read status.'}};
-document.getElementById('refresh').onclick=async()=>{const b=document.getElementById('refresh');b.disabled=true;out.textContent='Collecting… Existing snapshots remain available.';try{const r=await fetch('/api/refresh',{method:'POST',headers:{Authorization:'Bearer '+document.getElementById('write').value}});out.textContent=JSON.stringify(await r.json(),null,2);if(r.ok&&document.getElementById('read').value)document.getElementById('load').click()}catch{out.textContent='Refresh connection ended. Load status to check the last stored result.'}finally{b.disabled=false;document.getElementById('write').value=''}};
-</script></html>
+const out = document.getElementById('out');
+const load = document.getElementById('load');
+async function loadStatus() {
+  load.disabled = true;
+  try {
+    const response = await fetch('/api/status?format=text', { cache: 'no-store' });
+    out.textContent = response.ok ? await response.text() : 'Status is temporarily unavailable. Try reloading shortly.';
+  } catch {
+    out.textContent = 'Unable to read status. Check your connection and try again.';
+  } finally {
+    load.disabled = false;
+  }
+}
+load.onclick = loadStatus;
+document.getElementById('refresh').onclick = async () => {
+  const button = document.getElementById('refresh');
+  const token = document.getElementById('write');
+  button.disabled = true;
+  out.textContent = 'Collecting… Existing snapshots remain available through Reload status.';
+  try {
+    const response = await fetch('/api/refresh', { method: 'POST', headers: { Authorization: 'Bearer ' + token.value } });
+    if (response.ok) await loadStatus();
+    else out.textContent = response.status === 401 ? 'Refresh token not accepted.' : 'Collection failed. Reload status to view the last saved data.';
+  } catch {
+    out.textContent = 'Refresh connection ended. Reload status to check the last saved data.';
+  } finally {
+    button.disabled = false;
+    token.value = '';
+  }
+};
+loadStatus();
+</script>
+</html>

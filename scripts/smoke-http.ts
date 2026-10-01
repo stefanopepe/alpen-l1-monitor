@@ -2,12 +2,12 @@ import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const cron = randomBytes(32).toString('hex'), read = randomBytes(32).toString('hex');
+const cron = randomBytes(32).toString('hex'), wrong = randomBytes(32).toString('hex');
 // Exercise the documented launcher. An ephemeral port avoids hitting another app.
 const grouped = process.platform !== 'win32';
 const child = spawn('pnpm', ['dev'], {
   detached: grouped, stdio: ['ignore', 'pipe', 'pipe'],
-  env: { ...process.env, PORT: '0', NETWORK: 'mainnet', CRON_SECRET: cron, METRICS_BEARER_TOKENS: read, DATABASE_URL: '', DATABASE_URL_METRICS: '' },
+  env: { ...process.env, PORT: '0', NETWORK: 'mainnet', CRON_SECRET: cron, DATABASE_URL: '', DATABASE_URL_METRICS: '' },
 });
 const closed = new Promise<void>(resolve => child.once('close', () => resolve()));
 child.stderr!.resume(); // Drain output without disclosing environment/provider errors.
@@ -30,14 +30,14 @@ try {
   });
   const cases = [
     ['/', 'GET', '', 200], ['/missing', 'GET', '', 404],
-    ['/api/status', 'GET', '', 401], ['/api/status', 'GET', cron, 401],
-    ['/api/metrics', 'GET', cron, 401], ['/api/collect', 'GET', read, 401],
-    ['/api/refresh', 'POST', '', 401], ['/api/refresh', 'POST', read, 401],
-    ['/api/status?token=not-a-header', 'GET', '', 401],
-    ['/api/status', 'POST', read, 405], ['/api/refresh', 'GET', cron, 405],
-    ['/api/collect', 'POST', cron, 405], ['/api/status?format=xml', 'GET', read, 400],
-    ['/api/status', 'GET', read, 503], ['/api/status?format=text', 'GET', read, 503],
-    ['/api/metrics', 'GET', read, 503], ['/api/collect', 'GET', cron, 503],
+    ['/api/status', 'GET', '', 503], ['/api/status', 'GET', cron, 503],
+    ['/api/metrics', 'GET', cron, 503], ['/api/collect', 'GET', wrong, 401],
+    ['/api/refresh', 'POST', '', 401], ['/api/refresh', 'POST', wrong, 401],
+    ['/api/collect?token=' + cron, 'GET', '', 401],
+    ['/api/status', 'POST', '', 405], ['/api/refresh', 'GET', cron, 405],
+    ['/api/collect', 'POST', cron, 405], ['/api/status?format=xml', 'GET', '', 400],
+    ['/api/status', 'GET', wrong, 503], ['/api/status?format=text', 'GET', '', 503],
+    ['/api/metrics', 'GET', '', 503], ['/api/collect', 'GET', cron, 503],
     ['/api/refresh', 'POST', cron, 503],
   ] as const;
   for (const [path, method, token, expected] of cases) {
@@ -45,7 +45,7 @@ try {
     if (response.status !== expected) throw new Error(`E_SMOKE_STATUS_${response.status}`);
     if (path.startsWith('/api/') && !response.headers.get('cache-control')?.includes('no-store')) throw new Error('E_SMOKE_CACHE');
     const body = await response.text();
-    if (body.includes(read) || body.includes(cron)) throw new Error('E_SMOKE_SECRET');
+    if (body.includes(wrong) || body.includes(cron)) throw new Error('E_SMOKE_SECRET');
   }
   console.log(`HTTP smoke passed: ${cases.length} checks through pnpm dev; ephemeral tokens were not logged.`);
 } catch { console.error('E_HTTP_SMOKE'); process.exitCode = 1; }

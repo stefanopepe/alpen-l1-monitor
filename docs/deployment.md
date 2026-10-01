@@ -25,7 +25,7 @@ Apply `ops/roles.sql` as the migrator after migrations. Revoke `CONNECT` on the 
 
 ## 2. Vercel project and secrets
 
-Authenticate the CLI (`pnpm exec vercel login`) and link this directory to the intended paid team and project (`pnpm exec vercel link`). Suggested project name: `bridge-wallet-monitor-mainnet`. Select framework **Other**, Node **24.x**, Fluid compute enabled, region **iad1**. The repository sets output directory `public`, 800-second collect/refresh limits and a 15-minute cron. Hobby cannot meet these settings; use the existing paid team. No team plan purchase is automated.
+The existing project is **alpen-labs / ee-ol-wallet-monitor**. Manage it through the Vercel dashboard; CLI sign-in is optional. For CLI deployment, authenticate (`pnpm exec vercel login`) and link this directory to that exact project (`pnpm exec vercel link`). Use framework **Other**, Node **24.x**, Fluid compute enabled, region **iad1**. The repository sets output directory `public`, 800-second collect/refresh limits and a 15-minute cron. Hobby cannot meet these settings; use the existing paid team. No team plan purchase is automated.
 
 Add these **Production** environment variables through the Vercel dashboard or its interactive `env add` prompt:
 
@@ -35,12 +35,11 @@ Add these **Production** environment variables through the Vercel dashboard or i
 | `DATABASE_URL` | Neon pooled TLS URL for `monitor_app` |
 | `DATABASE_URL_METRICS` | Neon pooled TLS URL for `monitor_read` |
 | `CRON_SECRET` | Fresh random token, at least 32 characters, no whitespace/commas |
-| `METRICS_BEARER_TOKENS` | Independent random read token; optional second token separated by a comma |
 | `ALPEN_ESPLORA_TOKEN` | Private Alpen Esplora token, raw value only (no `?token=` prefix) |
 
 Mark secret variables Sensitive. Generate tokens locally with `openssl rand -hex 32` and enter them directly into Vercel; do not paste them into chat. Do not configure `MIGRATION_DATABASE_URL` in Vercel. Preview deployments get no database URLs or cron secret. Preview routes therefore fail closed.
 
-Production app routes must be reachable without Vercel's separate deployment-authentication wall: use **Standard** protection (previews protected; production domain reachable). The app itself authenticates every data and collection route. Do not create query-string bypass credentials or remove app auth. Review any team setting that enforces protection for all deployments before switching it.
+Production app routes must be reachable without Vercel's separate deployment-authentication wall: use **Standard** protection (previews protected; production domain reachable). The dashboard and read APIs are public by the user's explicit choice. Collection still requires `CRON_SECRET`; database and Esplora authentication remain server-side. The old `METRICS_BEARER_TOKENS` variable is unused after deploying the public-read update and can then be removed. Do not remove `DATABASE_URL_METRICS`: it remains the read-only database connection.
 
 The mainnet configuration selects the private Alpen Esplora at `https://esplora.himalayan-java-8qh3wg.alpen.org` as primary; its API paths start at the root, without `/api`. It uses `auth.scheme: query`, `parameter_name: token`, and `secret_env: ALPEN_ESPLORA_TOKEN`. The client URL-encodes the token for each outgoing request, rejects redirects, and returns sanitized errors. Keep the token out of the configured `base_url`, logs and saved reports. Bearer and custom-header authentication are also supported. Blockstream and mempool remain public failovers, each paced at one request per second; the private primary is initially paced at four requests per second.
 
@@ -49,6 +48,10 @@ For this provider switch, put `ALPEN_ESPLORA_TOKEN` in **both** the local ignore
 Alchemy may be configured separately for RPC-only future uses; it cannot substitute for Esplora discovery/history/inventory.
 
 ## 3. Build and deploy
+
+For dashboard deployment, select the project, open **Deployments → ⋯ → Create Deployment**, and choose the latest commit on **main**, with the Production branch/environment configuration. Verify the displayed source commit matches the intended update. Redeploying an older deployment rebuilds that older source; it does not pick up the new main-branch commit. This is the [Vercel dashboard deployment flow](https://vercel.com/changelog/manually-create-deployments-by-commit-or-branch-in-the-dashboard).
+
+For CLI deployment:
 
 ```sh
 pnpm install --frozen-lockfile
@@ -62,15 +65,15 @@ Keep the repository **private**: it contains watch-only descriptors and the supp
 
 ## 4. Verify the production domain
 
-1. Visit `/` and load status using the read token. Before collection both wallets should be `STALE / UNAVAILABLE`; this is expected.
-2. Verify unauthenticated `/api/status`, `/api/metrics` and `/api/collect` return 401. A read token must not trigger collection. A cron token must not read metrics.
-3. Use **Refresh now** with the cron token. It can take several minutes on public providers. A second concurrent refresh must return a skipped result rather than start a competing scan.
+1. Visit `/`; status should load automatically without a token. Before collection both wallets should be `STALE / UNAVAILABLE`; this is expected.
+2. Verify unauthenticated `/api/status` and `/api/metrics` return 200 when storage is available. Unauthenticated `GET /api/collect` and `POST /api/refresh` must still return 401. A wrong bearer token or a query parameter must not authorize collection.
+3. Open **Operator controls** and use **Collect now** with the cron token. It can take several minutes on public providers. A second concurrent refresh must return a skipped result rather than start a competing scan.
 4. Load text and JSON. Check **both** wallets, `asOf`, tip height/hash, provider, ceiling flags and the exact balance partition. Compare live inventory to an independent Esplora `/utxo` reading at the same stable tip. Never use a historical number from the brief as a current balance.
 5. First-run naive runway may be `null` with `history_incomplete`. Allow subsequent cron runs (or manual refreshes) to finish bounded history and reveal linking. Never lower the sample floor or invent cadence to make a number appear.
 6. Inspect Vercel Cron Jobs and the database `runs` table after at least two scheduled executions, roughly 15 minutes apart. Verify both wallets' timestamps advance. A manual trigger alone does not prove scheduling.
 7. For a stale-read drill in **staging**, withhold collection and confirm `stale=true` after 3300 seconds while prior balances retain their old `asOf`. External notifications/Grafana are not configured by this scoped release.
 
-Every environment variable change requires a new deployment. Rotate read tokens by temporarily accepting old/new tokens, update consumers, then remove the old token and redeploy. Never log authorization headers, request URLs containing RPC credentials, database errors or raw provider error bodies.
+Every environment variable change requires a new deployment. Never log authorization headers, request URLs containing credentials, database errors or raw provider error bodies.
 
 ## Config-only signet
 
