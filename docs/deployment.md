@@ -47,7 +47,7 @@ pnpm exec vercel deploy --prod
 
 For the established release path, configure GitHub environment `production-mainnet` with secrets `MIGRATION_DATABASE_URL` and `VERCEL_TOKEN`, and variables `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`. The workflow in `.github/workflows/deploy.yml` validates, migrates and deploys a `v*` tag or a manual dispatch. Git automatic deployment is disabled in `vercel.json`, so an ordinary main-branch merge does not change production.
 
-Keep the repository **private**: it contains watch-only descriptors and the supplied plan/brief. If it must become public, first externalise descriptor strings and remove private wallet details from documentation/history; do not simply change visibility. The configured GitHub remote is not currently accessible to the available GitHub account/connector, so direct CLI deployment is the shortest path once Vercel and database access exist.
+Keep the repository **private**: it contains watch-only descriptors and the supplied plan/brief. If it must become public, first externalise descriptor strings and remove private wallet details from documentation/history; do not simply change visibility. Smart-card SSH access to the GitHub remote works. The available CLI/connector API credentials cannot access it, so configure deployment secrets through the repository settings or use direct Vercel CLI deployment once Vercel and database access exist.
 
 ## 4. Verify the production domain
 

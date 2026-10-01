@@ -11,6 +11,7 @@ Use Node 24 and pnpm 11.25.0 (`corepack enable`).
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
+pnpm smoke
 cp -n .env.example .env
 docker compose up -d --wait
 pnpm migrate --init-network mainnet
@@ -20,6 +21,8 @@ pnpm dev
 Fill **independent**, random, at least 32-character `CRON_SECRET` and `METRICS_BEARER_TOKENS` values in `.env`. Generate each privately with `openssl rand -hex 32`. Open `http://localhost:3000`, enter the read token, and use the separate refresh token to collect. Token values are not persisted by the page. Never put tokens in URLs or paste them into issues/chat.
 
 Docker's trust authentication is strictly for this disposable, loopback-bound development setup. Production requires separate authenticated TLS database connections and least-privilege roles.
+
+`pnpm smoke` launches the actual `pnpm dev` command on an ephemeral loopback port and checks HTTP routing, authentication, role separation and missing-storage responses. It generates temporary tokens in memory and deliberately disconnects storage; collection-to-read persistence is covered by `pnpm test test/collect-integration.test.ts`.
 
 ## Endpoints
 

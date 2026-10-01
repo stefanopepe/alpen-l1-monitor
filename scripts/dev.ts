@@ -5,7 +5,7 @@ import refresh from '../api/refresh.js';
 import status from '../api/status.js';
 import metrics from '../api/metrics.js';
 const routes: Record<string, { fetch: (r: Request) => Promise<Response> }> = { '/api/collect': collect, '/api/refresh': refresh, '/api/status': status, '/api/metrics': metrics };
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost:3000'), route = routes[url.pathname];
     if (url.pathname === '/' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'text/html' }); res.end(readFileSync('public/index.html')); return; }
@@ -15,4 +15,8 @@ createServer(async (req, res) => {
     const response = await route.fetch(new Request(url, { method: req.method, headers }));
     res.writeHead(response.status, Object.fromEntries(response.headers)); res.end(await response.text());
   } catch { res.writeHead(500); res.end('Internal error'); }
-}).listen(3000, '127.0.0.1', () => console.log('Monitor: http://localhost:3000'));
+});
+server.listen(Number(process.env.PORT ?? 3000), '127.0.0.1', () => {
+  const address = server.address();
+  if (address && typeof address === 'object') console.log(`Monitor: http://127.0.0.1:${address.port}`);
+});

@@ -8,16 +8,17 @@
   },
   "packageManager": "pnpm@11.25.0",
   "scripts": {
-    "dev": "node --env-file-if-exists=.env --import node --import tsx scripts/dev.ts",
+    "dev": "node --env-file-if-exists=.env --import tsx scripts/dev.ts",
     "build": "pnpm typecheck && pnpm validate-config",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && depcruise src api --config .dependency-cruiser.cjs",
     "test": "vitest run",
     "check": "pnpm build && pnpm lint && pnpm test",
+    "smoke": "node --import tsx scripts/smoke-http.ts",
     "validate-config": "node --import tsx scripts/validate-configs.ts",
-    "migrate": "node --env-file-if-exists=.env --import node --import tsx scripts/migrate.ts",
-    "collect": "node --env-file-if-exists=.env --import node --import tsx scripts/collect.ts",
-    "inspect": "node --env-file-if-exists=.env --import node --import tsx scripts/inspect.ts"
+    "migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
+    "collect": "node --env-file-if-exists=.env --import tsx scripts/collect.ts",
+    "inspect": "node --env-file-if-exists=.env --import tsx scripts/inspect.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

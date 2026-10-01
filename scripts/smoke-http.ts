@@ -1,22 +1,57 @@
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { randomBytes } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
+
 const cron = randomBytes(32).toString('hex'), read = randomBytes(32).toString('hex');
-const child = spawn(process.execPath, ['--import', 'tsx', 'scripts/dev.ts'], {
-  stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, NETWORK: 'mainnet', CRON_SECRET: cron, METRICS_BEARER_TOKENS: read, DATABASE_URL: '', DATABASE_URL_METRICS: '' },
+// Exercise the documented launcher. An ephemeral port avoids hitting another app.
+const grouped = process.platform !== 'win32';
+const child = spawn('pnpm', ['dev'], {
+  detached: grouped, stdio: ['ignore', 'pipe', 'pipe'],
+  env: { ...process.env, PORT: '0', NETWORK: 'mainnet', CRON_SECRET: cron, METRICS_BEARER_TOKENS: read, DATABASE_URL: '', DATABASE_URL_METRICS: '' },
 });
+const closed = new Promise<void>(resolve => child.once('close', () => resolve()));
+child.stderr!.resume(); // Drain output without disclosing environment/provider errors.
+function stop(signal: NodeJS.Signals) {
+  if (!child.pid) return;
+  try { if (grouped) process.kill(-child.pid, signal); else child.kill(signal); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
+}
 try {
-  await Promise.race([once(child.stdout!, 'data'), once(child, 'exit').then(() => { throw new Error('E_SMOKE_SERVER'); })]);
+  const origin = await new Promise<string>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('E_SMOKE_START_TIMEOUT')), 15000);
+    let output = '';
+    const fail = () => { clearTimeout(timer); reject(new Error('E_SMOKE_SERVER')); };
+    child.once('error', fail); child.once('exit', fail);
+    child.stdout!.setEncoding('utf8').on('data', (chunk: string) => {
+      output = (output + chunk).slice(-4096);
+      const match = /Monitor: (http:\/\/127\.0\.0\.1:\d+)/.exec(output);
+      if (match) { clearTimeout(timer); resolve(match[1]!); }
+    });
+  });
   const cases = [
-    ['/', 'GET', '', 200], ['/api/status', 'GET', '', 401], ['/api/metrics', 'GET', cron, 401],
-    ['/api/collect', 'GET', read, 401], ['/api/refresh', 'POST', '', 401],
-    ['/api/status?format=text', 'GET', read, 503], ['/api/metrics', 'GET', read, 503], ['/api/refresh', 'POST', cron, 503],
+    ['/', 'GET', '', 200], ['/missing', 'GET', '', 404],
+    ['/api/status', 'GET', '', 401], ['/api/status', 'GET', cron, 401],
+    ['/api/metrics', 'GET', cron, 401], ['/api/collect', 'GET', read, 401],
+    ['/api/refresh', 'POST', '', 401], ['/api/refresh', 'POST', read, 401],
+    ['/api/status?token=not-a-header', 'GET', '', 401],
+    ['/api/status', 'POST', read, 405], ['/api/refresh', 'GET', cron, 405],
+    ['/api/collect', 'POST', cron, 405], ['/api/status?format=xml', 'GET', read, 400],
+    ['/api/status', 'GET', read, 503], ['/api/status?format=text', 'GET', read, 503],
+    ['/api/metrics', 'GET', read, 503], ['/api/collect', 'GET', cron, 503],
+    ['/api/refresh', 'POST', cron, 503],
   ] as const;
   for (const [path, method, token, expected] of cases) {
-    const response = await fetch(`http://127.0.0.1:3000${path}`, { method, headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(5000) });
+    const response = await fetch(`${origin}${path}`, { method, headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(5000) });
     if (response.status !== expected) throw new Error(`E_SMOKE_STATUS_${response.status}`);
-    if (path !== '/' && !response.headers.get('cache-control')?.includes('no-store')) throw new Error('E_SMOKE_CACHE');
+    if (path.startsWith('/api/') && !response.headers.get('cache-control')?.includes('no-store')) throw new Error('E_SMOKE_CACHE');
+    const body = await response.text();
+    if (body.includes(read) || body.includes(cron)) throw new Error('E_SMOKE_SECRET');
   }
-  console.log(`HTTP smoke passed: ${cases.length} checks; ephemeral tokens were not logged.`);
+  console.log(`HTTP smoke passed: ${cases.length} checks through pnpm dev; ephemeral tokens were not logged.`);
 } catch { console.error('E_HTTP_SMOKE'); process.exitCode = 1; }
-finally { const closed = once(child, 'close'); child.kill('SIGTERM'); await closed; }
+finally {
+  stop('SIGTERM');
+  await Promise.race([closed, delay(3000, undefined, { ref: false })]);
+  stop('SIGKILL');
+  await closed;
+}
