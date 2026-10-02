@@ -29,7 +29,7 @@ try {
     });
   });
   const cases = [
-    ['/', 'GET', '', 200], ['/missing', 'GET', '', 404],
+    ['/', 'GET', '', 200], ['/consolidation.html', 'GET', '', 200], ['/missing', 'GET', '', 404],
     ['/api/status', 'GET', '', 503], ['/api/status', 'GET', cron, 503],
     ['/api/metrics', 'GET', cron, 503], ['/api/collect', 'GET', wrong, 401],
     ['/api/refresh', 'POST', '', 401], ['/api/refresh', 'POST', wrong, 401],

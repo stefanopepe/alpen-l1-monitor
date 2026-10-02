@@ -1,5 +1,13 @@
 # Release verification — updated 2026-10-02
 
+## Consolidation release — v2.2.0
+
+The home page's Operator controls link to `/consolidation.html`. The page shows confirmed stranded outputs, value, an adjustable fee in 0.1 sat/vB steps, and an unsigned PSBT download. Input ownership, spend status, same-wallet change, conservative fee sizing and quote consistency are checked before download. The application never signs or broadcasts a transaction.
+
+Local validation passed strict types, config/address vectors, lint, dependency boundaries, **134 tests across 17 files** and **19 HTTP smoke checks**. Browser inspection verified the home-page link; HTTP checks verified the dedicated page. The approved Vercel preview contains only synthetic wallets; no real inventory export was created. Production uses the existing read-only database connection. There is no new database migration.
+
+GitHub's production deployment environment remains unconfigured. This release uses the documented authenticated Vercel CLI fallback after merge and tagging. Final CI, deployment and endpoint evidence is recorded on the [v2.2.0 release page](https://github.com/stefanopepe/alpen-l1-monitor/releases/tag/v2.2.0).
+
 ## First tagged release — v2.1.0
 
 The user authorized production deployment and the first release on October 2. The release includes wallet replay, experimental seasonal fee research, and durable quote/pressure/completed-block observations. The live API exposes observation context; seasonal predictions and calibrated bounds remain offline report/CLI features. The operational wallet-runway formula is unchanged.

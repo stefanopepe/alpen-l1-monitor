@@ -3,7 +3,7 @@ import type { Pool } from 'pg';
 import type { Snapshot } from '../types.js';
 import { feeContextSchema } from '../observations/schema.js';
 const n = z.number().finite().nonnegative(), i = n.int().safe();
-const snapshotSchema = z.object({
+export const snapshotSchema = z.object({
   feeContext: z.unknown().transform(v => feeContextSchema.safeParse(v).data).optional(),
   network: z.string(), wallet: z.string(), asOf: z.iso.datetime(), finishedAt: z.iso.datetime(), provider: z.string(),
   tip: z.object({ height: i, hash: z.string().regex(/^[0-9a-f]{64}$/), blockTime: i }),
@@ -18,6 +18,7 @@ const snapshotSchema = z.object({
   monitorVersion: z.string(), selectorModelVersion: i, upstreamRef: z.string(), deployedBuildConfirmed: z.boolean(), configSha256: z.string(),
 });
 export interface ReadModel {
+  preview?: { capturedAt: string; sample?: boolean };
   network: string; readAt: string; primaryIsPublic: boolean;
   wallets: { wallet: string; name: string; stale: boolean; ageSeconds: number | null; snapshot: Snapshot | null; feeContextStale?: boolean }[];
   providerErrors: { provider: string; total: number }[];

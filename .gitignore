@@ -10,3 +10,4 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 .pnpm-store/
+config/staging-snapshot.json

@@ -26,7 +26,7 @@ export async function observeCompletedFees(fetcher: typeof fetch = fetch, now = 
     return { observedAt: now().toISOString(), status: 'unavailable', blocks: null, error };
   }
 }
-async function observeQuote(fetcher: typeof fetch, now: () => Date): Promise<FeeContext> {
+export async function observeQuote(fetcher: typeof fetch = fetch, now = () => new Date()): Promise<FeeContext> {
   try {
     const response = await fetcher('https://mempool.space/api/v1/fees/recommended', {
       redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
