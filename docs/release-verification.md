@@ -6,7 +6,11 @@ The home page's Operator controls link to `/consolidation.html`. The page shows 
 
 Local validation passed strict types, config/address vectors, lint, dependency boundaries, **134 tests across 17 files** and **19 HTTP smoke checks**. Browser inspection verified the home-page link; HTTP checks verified the dedicated page. The approved Vercel preview contains only synthetic wallets; no real inventory export was created. Production uses the existing read-only database connection. There is no new database migration.
 
-GitHub's production deployment environment remains unconfigured. This release uses the documented authenticated Vercel CLI fallback after merge and tagging. Final CI, deployment and endpoint evidence is recorded on the [v2.2.0 release page](https://github.com/stefanopepe/alpen-l1-monitor/releases/tag/v2.2.0).
+The release branch was committed and merged into main as `6b491bf3e40a16c291f58279103a849e04093ae4`; the annotated [v2.2.0 tag](https://github.com/stefanopepe/alpen-l1-monitor/tree/v2.2.0) points to that commit. Both [CI jobs passed](https://github.com/stefanopepe/alpen-l1-monitor/actions/runs/37027368102), including PostgreSQL/PgBouncer checks. The CLI token and connected GitHub integration lack permission to create pull requests, so the verified branch was merged and pushed through Git. GitHub release-note publication also returned HTTP 403; the tag is published, but there is no GitHub Release object.
+
+GitHub's production deployment environment remains unconfigured; the [tag-triggered deployment](https://github.com/stefanopepe/alpen-l1-monitor/actions/runs/37027545700) failed at its configuration check. The documented authenticated Vercel CLI fallback succeeded from the exact tagged commit. Deployment `dpl_HnhKs5XYtjLvwbqAcsmuf79fqRhC` is Ready and aliased to [the main app](https://ee-ol-wallet-monitor.vercel.app/).
+
+Production home, consolidation page and status returned 200; unauthenticated collection returned 401. Both wallets' live quotes and unsigned PSBT downloads were verified at 1.2 sat/vB, including fee, returned amount, input count and absence of signatures. Browser verification followed the Operator controls link and confirmed the live fee controls and download button. No transaction was signed or broadcast. The existing collector reports durable fee evidence; no migration was needed for consolidation.
 
 ## First tagged release — v2.1.0
 
@@ -16,7 +20,7 @@ Release checks passed under Node **24.19.0**: strict types, configuration/addres
 
 Production preflight verified the existing `alpen-labs/ee-ol-wallet-monitor` Vercel project, Node 24.x, mainnet database schema 1, and both runtime/read roles. The rollout deploys the schema-1/2-compatible code before applying migration 2 and role permissions. Earlier code rejects schema 2 and is not a supported rollback target. GitHub's `production-mainnet` deployment environment was absent, so this release uses the authenticated Vercel CLI fallback; configuring tag-driven deployment remains separate setup work.
 
-Final deployment evidence and release status are recorded on the [v2.1.0 release page](https://github.com/stefanopepe/alpen-l1-monitor/releases/tag/v2.1.0). Earlier entries below preserve the verification state at the time they were written.
+At the v2.2.0 release preflight, v2.1.0 remained a local tag and its commit was not yet on remote main. That work is included in the published v2.2.0 tag above. Earlier entries below preserve the verification state at the time they were written.
 
 ## Implemented locally
 
