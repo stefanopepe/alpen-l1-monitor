@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0 — stranded output consolidation (2026-10-02)
+
+- Link **Consolidate stranded outputs** from Operator controls at the bottom of the app home to a dedicated consolidation page.
+- Show each wallet's confirmed stranded output count, total value, fee rate, estimated transaction fee and spendable amount after confirmation.
+- Adjust the fee in 0.1 sat/vB steps and download an unsigned PSBT for the selected rate. Return funds to the same wallet and recheck inputs before download; signing and broadcasting stay in the operator's wallet.
+- Add clearly labelled sample-data staging, a link back to the main application, and PSBT construction/validation coverage. No database migration or collector accounting change.
+
 ## 2.1.0 — replay and durable fee evidence (2026-10-02)
 
 First tagged release. Includes the public dashboard and existing production collector, wallet replay, and the experimental fee research tools. Operational wallet runway keeps its existing formula; seasonal forecasts and calibration remain local CLI/report features.

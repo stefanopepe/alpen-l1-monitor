@@ -15,7 +15,12 @@
       "includeFiles": "config/**"
     },
     "api/status.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "config/**"
+    },
+    "api/consolidation.ts": {
+      "maxDuration": 30,
+      "includeFiles": "config/**"
     },
     "api/metrics.ts": {
       "maxDuration": 30

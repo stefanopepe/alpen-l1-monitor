@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consolidation · Bridge wallet monitor</title>
+<style>
+:root{color-scheme:light;--ink:#223344;--muted:#596b7b;--line:#dfe6eb;--soft:#f3f6f8;--green:#087f72}
+*{box-sizing:border-box}body{font:15px/1.55 system-ui,sans-serif;max-width:58rem;margin:3rem auto;padding:0 1.5rem;color:var(--ink);background:#f6f8fa}
+h1{font-size:1.8rem;font-weight:600;margin:0}h2{font-size:1.3rem;font-weight:600;margin:0 0 .5rem}p{margin:.5rem 0 1rem}button,input,select{font:inherit}button{cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:.6rem 1rem;background:white;color:var(--ink);min-height:44px}button:disabled{opacity:.55;cursor:default}button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid #66b9ac;outline-offset:3px}
+button.primary{background:var(--green);color:white;border-color:var(--green)}small,.muted{color:var(--muted)}.page-header{display:flex;justify-content:space-between;gap:1rem;align-items:center}.intro{color:var(--muted);margin:.35rem 0 1.5rem}.preview{padding:.65rem 1rem;border:1px solid #dac9a7;background:#fff7e8;border-radius:7px;margin-bottom:1.5rem;font-size:13px}
+.header-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.6rem 1rem}.main-app{color:var(--green);white-space:nowrap;font-size:14px}.fee-editor{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:.4rem}.fee-editor input{width:6rem;min-height:44px;padding:.45rem .3rem;border:1px solid var(--line);border-radius:7px;text-align:center;background:white;color:var(--ink);font-variant-numeric:tabular-nums}.fee-editor button{min-width:44px;padding:.4rem}.fee-editor input[aria-invalid=true]{border-color:#9d3327}.fee-row:has(.fee-editor){align-items:center}
+.tabs{display:flex;gap:.5rem;margin-bottom:1rem}.tabs button[aria-pressed=true]{background:var(--ink);color:white;border-color:var(--ink)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1.5rem 0}.stat{display:flex;flex-direction:column;gap:.35rem}.stat span{font-size:13px;color:var(--muted)}.stat strong{font-size:1.2rem;font-weight:500;font-variant-numeric:tabular-nums}.asof{font-size:12px;color:var(--muted)}
+.panel{border:1px solid var(--line);border-radius:12px;background:white;overflow:hidden;margin-top:1.5rem}.panel-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--line);font-size:13px}.wallet-label{font-weight:600}.switch{display:flex;align-items:center;gap:.6rem;color:var(--muted);min-height:24px}.switch input{accent-color:var(--green);width:32px;height:18px;margin:0}.panel-body{padding:1.5rem 1.4rem}.amount{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}.copy{font-size:14px;color:var(--muted);max-width:32rem}.fees{padding:.75rem 1rem;background:var(--soft);border-radius:8px;margin:1.3rem 0;max-width:35rem}.fee-row{display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;font-size:14px}.fee-row dt{color:var(--muted)}.fee-row dd{margin:0;font-weight:500;text-align:right;font-variant-numeric:tabular-nums}.actions{display:flex;flex-wrap:wrap;gap:.6rem}.help{font-size:12px;color:var(--muted);margin:.65rem 0 0}.message{font-size:14px;margin:1rem 0 0}.error{color:#9d3327}.destination{overflow-wrap:anywhere;font-size:12px}.details{margin-top:1.5rem}summary{cursor:pointer}pre{white-space:pre-wrap;padding:1rem;background:white;border:1px solid var(--line);font-size:12px;line-height:1.65}input[type=password]{width:min(65%,24rem);padding:.65rem;border:1px solid var(--line);border-radius:7px}.operator-label{display:block;margin:1rem 0 .4rem}[hidden]{display:none!important}
+@media(max-width:500px){body{padding:0 1rem;margin:1.5rem auto}.page-header{align-items:flex-start}h1{font-size:1.5rem}.stats{gap:.6rem}.stat strong{font-size:1rem}.panel-body{padding:1.25rem 1rem}.panel-head{padding:.8rem 1rem}.fee-row{flex-wrap:wrap;gap:.2rem 1rem}.fee-row dd{margin-left:auto}.actions button{width:100%}}
+</style>
+<header class="page-header"><h1>Bridge wallet monitor</h1><div class="header-actions"><a class="main-app" href="https://ee-ol-wallet-monitor.vercel.app/">Open main app ↗</a><button id="load">Reload status</button></div></header>
+<p class="intro">Spendable balance, stranded outputs and wallet runway.</p>
+<div id="preview" class="preview" hidden></div>
+<div id="wallets" class="tabs" aria-label="Wallet"></div>
+<div id="status" aria-live="polite">Loading wallet status…</div>
+<section class="panel" aria-labelledby="opportunity-title">
+  <div class="panel-head"><span class="wallet-label" id="wallet-name">Wallet</span><label class="switch">Consolidation opportunities <input id="enabled" type="checkbox" role="switch" checked></label></div>
+  <div class="panel-body">
+    <h2 id="opportunity-title">Consolidation opportunity</h2>
+    <div id="quote" aria-live="polite"><p class="copy">Checking stranded outputs and fees…</p></div>
+    <div id="transaction" hidden>
+      <p class="copy">Combine these outputs in one transaction back to your wallet.</p>
+      <dl class="fees">
+        <div class="fee-row"><dt><label for="fee-rate">Fee rate</label></dt><dd class="fee-editor"><button id="fee-down" type="button" aria-label="Decrease fee by 0.1 sat/vB">−</button><input id="fee-rate" type="number" min="0.1" max="10000" step="0.1" value="1.0" inputmode="decimal" aria-describedby="fee-unit"><button id="fee-up" type="button" aria-label="Increase fee by 0.1 sat/vB">+</button><span id="fee-unit">sat/vB</span></dd></div>
+        <div class="fee-row"><dt>Estimated transaction fee</dt><dd id="fee-total"></dd></div>
+        <div class="fee-row"><dt>Spendable after confirmation</dt><dd id="recovered"></dd></div>
+      </dl>
+      <div class="actions"><button class="primary" id="download">Download unsigned transaction</button><button id="requote">Refresh estimate</button></div>
+      <p class="help">Sign and broadcast it from your wallet.</p>
+      <p class="help" id="fee-source"></p>
+      <details class="details"><summary>Transaction details</summary><p class="destination" id="destination"></p><p class="help" id="size"></p></details>
+    </div>
+    <button id="retry" hidden>Check again</button>
+    <p id="download-message" class="message" aria-live="polite"></p>
+  </div>
+</section>
+<details class="details"><summary>Wallet status details</summary><pre id="out"></pre></details>
+<details id="operators" class="details">
+  <summary>Operator controls</summary><label class="operator-label" for="write">Refresh token</label>
+  <input id="write" type="password" autocomplete="off" placeholder="Cron secret"><button id="refresh">Collect now</button>
+  <p class="help">Manual collection requires the operator token. It is cleared after use.</p>
+</details>
+<script>
+const el=id=>document.getElementById(id), fmt=n=>new Intl.NumberFormat('en',{maximumFractionDigits:3}).format(n);
+const when=t=>new Date(t).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});
+let model=null, selected='ee', quote=null, requestId=0, selectedRate=null, feeTimer=null;
+try{el('enabled').checked=localStorage.getItem('consolidationEnabled')!=='false'}catch{}
+function showMessage(message,error=false){el('download-message').textContent=message;el('download-message').classList.toggle('error',error)}
+function renderWallet(){
+  const wallet=model.wallets.find(w=>w.wallet===selected); if(!wallet)return;
+  el('wallet-name').textContent=selected.toUpperCase()+' wallet';
+  const status=el('status');status.replaceChildren();
+  if(!wallet.snapshot){status.textContent='No wallet data has been collected yet.';return}
+  const c=wallet.snapshot.composition,r=wallet.snapshot.naiveRunway;
+  const stats=document.createElement('div');stats.className='stats';
+  for(const [label,value] of [['Spendable balance',fmt(c.spendableSats)+' sats'],['Stranded balance',fmt(c.strandedSats)+' sats'],['Estimated runway',r.days===null?'Unavailable':fmt(Math.round(r.days*10)/10)+' days']]){
+    const cell=document.createElement('div');cell.className='stat';const name=document.createElement('span');name.textContent=label;const number=document.createElement('strong');number.textContent=value;cell.append(name,number);stats.append(cell)
+  }
+  const asof=document.createElement('p');asof.className='asof';asof.textContent=model.preview?.sample?'Sample wallet data for this staging preview.':'Wallet snapshot: '+when(wallet.snapshot.asOf)+' · Block '+fmt(wallet.snapshot.tip.height)+(wallet.stale?' · Saved data is stale':'')+' · Runway uses observed spending.';
+  status.append(stats,asof);
+  el('out').textContent=JSON.stringify(wallet.snapshot,null,2);
+  for(const button of el('wallets').children)button.setAttribute('aria-pressed',String(button.dataset.wallet===selected));
+}
+async function loadQuote(keepEditor=false){
+  clearTimeout(feeTimer);
+  const id=++requestId;quote=null;el('download').disabled=true;if(!keepEditor)el('transaction').hidden=true;el('retry').hidden=true;showMessage('');
+  el('opportunity-title').textContent=el('enabled').checked?'Consolidation opportunity':'Consolidation opportunities are off';
+  if(!el('enabled').checked){el('quote').textContent='Turn on this switch to check stranded outputs and fees.';return}
+  if(!model){el('quote').textContent='Load wallet status to check for an opportunity.';return}
+  el('quote').textContent='Checking stranded outputs and fees…';
+  try{
+    const response=await fetch('/api/consolidation?wallet='+encodeURIComponent(selected)+(selectedRate===null?'':'&feeRate='+selectedRate.toFixed(1)),{cache:'no-store'});
+    const data=await response.json();if(id!==requestId)return;
+    if(!response.ok)throw new Error(data.message||'The estimate is unavailable. Try again shortly.');
+    quote=data;const amount=document.createElement('p');amount.className='amount';amount.textContent=fmt(data.outputCount)+' stranded outputs · '+fmt(data.totalSats)+' sats';el('quote').replaceChildren(amount);
+    el('fee-rate').value=data.feeRate.toFixed(1);el('fee-rate').removeAttribute('aria-invalid');el('fee-down').disabled=data.feeRate<=0.1;el('fee-up').disabled=data.feeRate>=10000;el('fee-total').textContent=fmt(data.feeSats)+' sats';el('recovered').textContent=fmt(data.recoveredSats)+' sats';
+    el('fee-source').textContent=data.sample?'Example economy rate: '+data.recommendedFeeRate.toFixed(1)+' sat/vB.':'Economy rate: '+data.recommendedFeeRate.toFixed(1)+' sat/vB from mempool.space · Checked '+when(data.feeObservedAt);
+    el('destination').textContent='Return address: '+data.destination;
+    el('size').textContent='Estimated signed size: '+fmt(data.estimatedVsize)+' vB · One wallet output · PSBT download';
+    el('transaction').hidden=false;el('download').disabled=false;
+  }catch(error){if(id!==requestId)return;el('quote').textContent=error.message||'Unable to load the estimate.';el('fee-total').textContent='—';el('recovered').textContent='—';el('retry').hidden=keepEditor}
+}
+async function loadStatus(){
+  el('load').disabled=true;
+  try{
+    const response=await fetch('/api/status',{cache:'no-store'});if(!response.ok)throw new Error('Wallet status is temporarily unavailable.');
+    model=await response.json();el('wallets').replaceChildren();
+    if(!model.wallets.some(w=>w.wallet===selected))selected=model.wallets[0].wallet;
+    for(const wallet of model.wallets){const button=document.createElement('button');button.textContent=wallet.wallet.toUpperCase()+' wallet';button.dataset.wallet=wallet.wallet;button.onclick=()=>{selected=wallet.wallet;renderWallet();loadQuote()};el('wallets').append(button)}
+    el('preview').hidden=!model.preview;el('operators').hidden=!!model.preview;
+    if(model.preview)el('preview').textContent=model.preview.sample?'Staging preview · Sample wallets and example fees. Downloads contain test data.':'Staging preview · Saved wallet inventory from '+when(model.preview.capturedAt)+'. Fees and selected outputs are checked live.';
+    renderWallet();await loadQuote();
+  }catch(error){el('status').textContent=error.message||'Unable to read wallet status.';quote=null;el('transaction').hidden=true;el('quote').textContent='Reload wallet status to try again.'}
+  finally{el('load').disabled=false}
+}
+el('load').onclick=loadStatus;el('requote').onclick=()=>loadQuote(true);el('retry').onclick=()=>loadQuote();
+function changeFee(){
+  clearTimeout(feeTimer);++requestId;quote=null;el('download').disabled=true;el('fee-total').textContent='—';el('recovered').textContent='—';
+  const input=el('fee-rate'),rate=Number(input.value),valid=input.value!==''&&Number.isFinite(rate)&&rate>=0.1&&rate<=10000&&Math.abs(rate*10-Math.round(rate*10))<1e-8;
+  input.setAttribute('aria-invalid',String(!valid));el('fee-down').disabled=valid&&rate<=0.1;el('fee-up').disabled=valid&&rate>=10000;
+  if(!valid){showMessage('Enter a fee rate from 0.1 to 10,000 sat/vB in steps of 0.1.',true);return}
+  selectedRate=Math.round(rate*10)/10;showMessage('Updating fee estimate…');feeTimer=setTimeout(()=>loadQuote(true),200);
+}
+el('fee-rate').oninput=changeFee;
+for(const [id,step] of [['fee-down',-1],['fee-up',1]])el(id).onclick=()=>{const value=Number(el('fee-rate').value);el('fee-rate').value=(Math.max(1,Math.min(100000,Math.round((Number.isFinite(value)&&value>0?value:1)*10)+step))/10).toFixed(1);changeFee()};
+el('enabled').onchange=()=>{try{localStorage.setItem('consolidationEnabled',String(el('enabled').checked))}catch{}loadQuote()};
+el('download').onclick=async()=>{
+  if(!quote)return;const current=quote,id=requestId;el('download').disabled=true;showMessage('Checking outputs before download…');
+  try{
+    const response=await fetch('/api/consolidation?wallet='+encodeURIComponent(current.wallet)+'&feeRate='+current.feeRate.toFixed(1)+'&format=psbt&quote='+current.quoteId,{cache:'no-store'});
+    if(!response.ok){const data=await response.json();throw new Error(data.message||'Unable to download the transaction.')}
+    const blob=await response.blob();if(id!==requestId)return;
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=current.wallet+(current.sample?'-sample':'')+'-consolidation.psbt';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    showMessage(current.sample?'Sample unsigned transaction downloaded. This file contains test data.':'Unsigned transaction downloaded. Open it in your wallet to sign and broadcast.');
+  }catch(error){if(id===requestId){showMessage(error.message,true);quote=null}}
+  finally{if(id===requestId)el('download').disabled=!quote}
+};
+el('refresh').onclick=async()=>{
+  const button=el('refresh'),token=el('write');button.disabled=true;
+  try{const response=await fetch('/api/refresh',{method:'POST',headers:{Authorization:'Bearer '+token.value}});if(response.ok)await loadStatus();else showMessage(response.status===401?'Refresh token not accepted.':'Collection failed. Reload to see the last saved data.',true)}
+  catch{showMessage('Connection ended. Reload to check the last saved data.',true)}finally{button.disabled=false;token.value=''}
+};
+loadStatus();
+</script>
+</html>
