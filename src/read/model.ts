@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Snapshot } from '../types.js';
+import { feeContextSchema } from '../observations/schema.js';
 const n = z.number().finite().nonnegative(), i = n.int().safe();
 const snapshotSchema = z.object({
+  feeContext: z.unknown().transform(v => feeContextSchema.safeParse(v).data).optional(),
   network: z.string(), wallet: z.string(), asOf: z.iso.datetime(), finishedAt: z.iso.datetime(), provider: z.string(),
   tip: z.object({ height: i, hash: z.string().regex(/^[0-9a-f]{64}$/), blockTime: i }),
   ceilingHit: z.object({ receive: z.boolean(), change: z.boolean() }), addressesScanned: i,
@@ -17,7 +19,7 @@ const snapshotSchema = z.object({
 });
 export interface ReadModel {
   network: string; readAt: string; primaryIsPublic: boolean;
-  wallets: { wallet: string; name: string; stale: boolean; ageSeconds: number | null; snapshot: Snapshot | null }[];
+  wallets: { wallet: string; name: string; stale: boolean; ageSeconds: number | null; snapshot: Snapshot | null; feeContextStale?: boolean }[];
   providerErrors: { provider: string; total: number }[];
 }
 export async function readModel(pool: Pool, network: string, now: Date): Promise<ReadModel> {
@@ -33,6 +35,8 @@ export async function readModel(pool: Pool, network: string, now: Date): Promise
       if (snapshot && (snapshot.network !== network || snapshot.wallet !== row.wallet)) throw new Error('E_DB_NETWORK');
       const ageSeconds = snapshot ? Math.max(0, (now.getTime() - Date.parse(snapshot.asOf)) / 1000) : null;
       return { wallet: row.wallet as string, name: row.display_name as string, snapshot, ageSeconds,
+        feeContextStale: !snapshot?.feeContext || snapshot.feeContext.status !== 'available' ||
+          now.getTime() - Date.parse(snapshot.feeContext.observedAt) > settings.rows[0].stale_after_s * 1000,
         stale: ageSeconds === null || ageSeconds > settings.rows[0].stale_after_s };
     });
     if (!wallets.length) throw new Error('E_DB_WALLETS');

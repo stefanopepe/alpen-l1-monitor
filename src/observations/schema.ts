@@ -1,0 +1,20 @@
+import { z } from 'zod';
+import { feePressureSchema } from '../fees/schema.js';
+const rate = z.number().finite().nonnegative();
+export const completedBlockSchema = z.object({
+  id: z.string().regex(/^[a-f0-9]{64}$/), height: z.number().int().nonnegative(),
+  timestamp: z.number().int().nonnegative(), weight: z.number().int().min(0).max(4000000),
+  extras: z.object({ medianFee: rate, feeRange: z.array(rate).min(1).max(100) }),
+});
+export const completedFeesSchema = z.object({
+  observedAt: z.iso.datetime(), status: z.enum(['available', 'unavailable']),
+  blocks: z.array(completedBlockSchema).min(1).max(15).nullable(), error: z.string().nullable(),
+}).refine(v => v.status === 'available' ? v.blocks !== null && v.error === null : v.blocks === null && v.error !== null);
+export const feeRatesSchema = z.object({ fastestFee: rate, halfHourFee: rate, hourFee: rate, economyFee: rate, minimumFee: rate });
+export const feeContextSchema = z.object({
+  provider: z.literal('mempool'), observedAt: z.iso.datetime(), status: z.enum(['available', 'unavailable']),
+  rates: feeRatesSchema.nullable(), error: z.string().nullable(),
+  pressure: feePressureSchema.optional(),
+  completed: completedFeesSchema.optional(),
+  persistence: z.enum(['durable', 'unavailable']).optional(),
+}).refine(v => v.status === 'available' ? v.rates !== null && v.error === null : v.rates === null);

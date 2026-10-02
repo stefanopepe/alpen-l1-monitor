@@ -24,10 +24,21 @@ export interface NaiveRunway {
   reason: 'available' | 'no_spendable_funds' | 'discovery_incomplete' | 'history_incomplete' | 'insufficient_settlements' | 'cadence_unavailable';
 }
 export interface Snapshot {
+  feeContext?: FeeContext;
   network: string; wallet: string; asOf: string; finishedAt: string; provider: string;
   tip: Tip; ceilingHit: { receive: boolean; change: boolean }; addressesScanned: number;
   composition: Composition; naiveRunway: NaiveRunway; requestsUsed: number;
   primaryIsPublic: boolean; networkTipOld: boolean; historyError: string | null;
   monitorVersion: string; selectorModelVersion: number; upstreamRef: string;
   deployedBuildConfirmed: boolean; configSha256: string;
+}
+export interface FeeRates {
+  fastestFee: number; halfHourFee: number; hourFee: number; economyFee: number; minimumFee: number;
+}
+export interface FeeContext {
+  provider: 'mempool'; observedAt: string; status: 'available' | 'unavailable';
+  rates: FeeRates | null; error: string | null;
+  pressure?: import('./fees/schema.js').FeePressure;
+  completed?: import('zod').infer<typeof import('./observations/schema.js').completedFeesSchema>;
+  persistence?: 'durable' | 'unavailable';
 }

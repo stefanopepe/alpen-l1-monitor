@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Alpen · Wallet runway</title>
+<style>/* REPORT_STYLES */</style>
+</head>
+<body>
+<a class="visually-hidden-focusable skip-link" href="#main">Skip to dashboard</a>
+<header class="topbar"><div class="container-xxl d-flex align-items-center justify-content-between gap-3">
+  <a class="brand" href="#main"><span class="brand-mark">A</span> ALPEN <span class="brand-divider">/</span> <span class="brand-product">Wallet analytics</span></a>
+  <span class="badge network-badge" id="network">Confirmed-chain replay</span>
+</div></header>
+<main class="container-xxl py-4" id="main">
+  <div class="page-heading d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div><div class="eyebrow">TIME MACHINE</div><h1>Wallet runway</h1><p class="text-secondary mb-0">Explore saved historical wallet data. Balances do not update live.</p></div>
+    <div class="archive-label"><span>REPLAY COVERAGE · UTC</span><strong id="archiveRange">Loading archive…</strong><small id="archiveBlocks"></small><small id="archiveEnd"></small></div>
+  </div>
+  <div id="loadError" class="alert alert-danger" role="alert" hidden></div>
+  <div class="card selection-card mb-4"><div class="card-body"><div class="row g-3 align-items-end">
+    <div class="col-md-6 col-lg-5">
+      <div class="field-label"><label for="wallet" class="form-label">Bitcoin wallet</label><button class="help" type="button" aria-label="About Bitcoin wallet" data-bs-toggle="tooltip" data-bs-title="EE funds execution environment checkpoints. OL funds orchestration layer checkpoints. Each wallet includes its receive and change address chains; balances are never combined.">?</button></div>
+      <select class="form-select" id="wallet" aria-describedby="walletDescription"></select>
+    </div>
+    <div class="col-md-6 col-lg-4">
+      <div class="field-label"><label for="model" class="form-label">Forecast model</label><button class="help" type="button" aria-label="About forecast model" data-bs-toggle="tooltip" data-bs-title="Current algorithm uses median settlement cost × estimated daily cadence. The 7-day and 30-day averages divide complete settlement spending by that many days. This choice changes the dashed balance projection and the highlighted accuracy metrics.">?</button></div>
+      <select class="form-select" id="model"><option value="current">Current runway algorithm</option><option value="mean7">7-day spending average</option><option value="mean30">30-day spending average</option></select>
+    </div>
+    <div class="col-lg-3"><p class="wallet-description mb-0" id="walletDescription"></p></div>
+  </div></div></div>
+  <nav class="section-nav mb-4" aria-label="Report sections"><a href="#burndown">Balance burndown</a><a href="#accuracy">Forecast accuracy</a><a href="#prediction-errors">Largest errors</a><!-- FEE_NAV --><a href="#notes">Methodology &amp; questions</a></nav>
+
+  <section class="card mb-4" id="burndown" aria-labelledby="burndownTitle">
+    <div class="card-body">
+      <div class="section-heading"><div><div class="eyebrow" id="walletName"></div><h2 id="burndownTitle" tabindex="-1">Balance burndown</h2><p class="text-secondary small mb-0" id="originLabel"></p></div><span class="badge subtle-badge">Spendable balance · sats</span></div>
+      <div class="replay-controls row g-3 align-items-end mt-1 mb-3">
+        <div class="col-auto"><span class="form-label d-block">Replay blocks</span><div class="btn-group" role="group" aria-label="Replay navigation"><button class="btn btn-outline-secondary" id="prev" aria-label="Previous block">←</button><button class="btn btn-outline-secondary" id="play" aria-pressed="false">Play</button><button class="btn btn-outline-secondary" id="next" aria-label="Next block">→</button></div></div>
+        <div class="col-sm-4 col-md-3"><label for="height" class="form-label">Block height</label><div class="input-group"><input class="form-control" id="height" type="number" step="1"><button class="btn btn-outline-secondary" id="jump">Go</button></div></div>
+        <div class="col-sm-5 col-md-4"><label for="date" class="form-label">Forecast date · UTC</label><div class="input-group"><input class="form-control" id="date" type="date"><button class="btn btn-outline-secondary" id="dateJump" aria-label="Go to date">Go</button></div></div>
+        <div class="col-auto ms-md-auto"><button class="btn btn-light" id="latest" data-bs-toggle="tooltip" data-bs-title="Jump to the last block saved in this report, including funding confirmed by that block. To capture newer blocks and deposits, rebuild with pnpm replay refresh. This portable report does not contact providers.">Latest archived block</button></div>
+      </div>
+      <input class="form-range" id="slider" type="range" min="0" value="0" aria-label="Replay position">
+      <div class="row g-0 balance-stats my-3">
+        <div class="col-6 col-lg-3 stat"><span>Spendable at this block</span><strong id="balance">—</strong><small>sats</small></div>
+        <div class="col-6 col-lg-3 stat"><span>Predicted daily spending</span><strong id="daily">—</strong><small>sats / day</small></div>
+        <div class="col-6 col-lg-3 stat"><span>Projected runway</span><strong id="runway">—</strong><small id="runwayHelp">days at the selected model's rate</small></div>
+        <div class="col-6 col-lg-3 stat"><span>Projected zero balance</span><strong id="emptyDate">—</strong><small id="emptyTime">UTC · no future funding assumed</small></div>
+      </div>
+      <div class="chart-legend"><span><i class="legend-line actual"></i>Recorded spendable balance</span><span><i class="legend-line predicted"></i>Selected model forecast</span><span><i class="legend-dot event-dot"></i>Funding or wallet action</span></div>
+      <div class="burndown-chart"><canvas id="balanceChart" role="img" aria-label="Wallet balance burndown with UTC dates and projected zero-balance point"></canvas></div>
+      <p class="chart-caption" id="burndownCaption"></p>
+      <p class="small text-secondary mb-0">The dashed line assumes a constant spending rate and no new funding. The solid line includes actual deposits and wallet actions.</p>
+      <div class="row g-4 mt-1 detail-row">
+        <div class="col-lg-7"><details><summary>Wallet inventory &amp; model inputs <span class="summary-meta" id="inputCount"></span></summary><div class="table-responsive mt-3"><table class="table table-sm" aria-label="Wallet inventory"><tbody id="inventory"></tbody></table></div><p class="small text-secondary" id="fee"></p><div class="table-responsive training-scroll"><table class="table table-sm small" aria-label="Settlement training inputs"><thead><tr><th>Commit · UTC</th><th>Cost · sats</th><th>Status</th><th>Transaction</th></tr></thead><tbody id="training"></tbody></table></div><p class="small text-secondary" id="trainingHelp"></p></details></div>
+        <div class="col-lg-5"><details><summary>Funding &amp; wallet actions <span class="summary-meta" id="eventCount"></span></summary><div class="list-group list-group-flush event-list mt-3" id="events"></div></details></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card mb-4" id="accuracy" aria-labelledby="accuracyTitle"><div class="card-body">
+    <div class="section-heading"><div><div class="eyebrow">BACKTEST RESULTS</div><h2 id="accuracyTitle">Forecast accuracy</h2><p class="text-secondary small mb-0" id="accuracyDescription"></p></div></div>
+    <div class="row g-3 mt-1 mb-4">
+      <div class="col-md-4"><div class="field-label"><label class="form-label" for="horizon">Spending forecast period</label><button class="help" type="button" aria-label="About spending forecast period" data-bs-toggle="tooltip" data-bs-title="For each historical forecast, compare predicted spending with the total cost of commits in the next 1, 3, 5 or 7 days, including their complete reveal packages. This changes accuracy scoring, not the full runway projection above.">?</button></div><select class="form-select" id="horizon"><option value="1">Next 1 day</option><option value="3">Next 3 days</option><option value="5" selected>Next 5 days</option><option value="7">Next 7 days</option></select></div>
+      <div class="col-md-4"><div class="field-label"><label class="form-label" for="subset">Wallet activity</label><button class="help" type="button" aria-label="About wallet activity" data-bs-toggle="tooltip" data-bs-title="All windows includes periods with deposits, consolidations or unrelated spending. Without wallet actions excludes those periods. Deposits never subtract from the settlement spending being scored.">?</button></div><select class="form-select" id="subset"><option value="all">All recorded activity</option><option value="clean">Without funding or wallet actions</option></select></div>
+      <div class="col-md-4"><div class="field-label"><label class="form-label" for="sampling">Forecast spacing</label><button class="help" type="button" aria-label="About forecast spacing" data-bs-toggle="tooltip" data-bs-title="Daily takes the first replayed block of each UTC day, so outcome periods overlap. Non-overlapping keeps forecast dates at least the selected period apart. It has fewer observations but avoids reusing the same spending period.">?</button></div><select class="form-select" id="sampling"><option value="daily">Every day · overlapping periods</option><option value="non_overlapping">Non-overlapping periods</option></select></div>
+    </div>
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3"><div class="metric"><span>Compared forecasts</span><strong id="matched">—</strong><small id="coverage">available across all three models</small></div></div>
+      <div class="col-6 col-lg-3"><div class="metric"><span>Average absolute error</span><strong id="mae">—</strong><small>sats per forecast period</small></div></div>
+      <div class="col-6 col-lg-3"><div class="metric"><span>Spending underestimated</span><strong id="under">—</strong><small id="underCount">of compared forecasts</small></div></div>
+      <div class="col-6 col-lg-3"><div class="metric"><div class="field-label"><span>90th percentile shortfall</span><button class="help" type="button" aria-label="About 90th percentile shortfall" data-bs-toggle="tooltip" data-bs-title="The 90th percentile of actual minus predicted spending, with overestimates counted as zero. Higher values mean larger optimistic misses. This is an observed error statistic, not a funding guarantee.">?</button></div><strong id="p90">—</strong><small>sats of underestimated spending</small></div></div>
+    </div>
+    <div class="table-responsive"><table class="table comparison-table" aria-label="Model accuracy comparison"><thead><tr><th>Model</th><th>Available</th><th>Compared</th><th>Avg. error · sats</th><th>Bias · sats</th><th>Underestimated</th><th>Error vs baseline</th></tr></thead><tbody id="scoreRows"></tbody></table></div>
+    <p class="small text-secondary" id="comparisonNote"></p>
+    <details class="mb-3"><summary>Forecast availability &amp; exclusions</summary><div class="table-responsive mt-3"><table class="table table-sm small" aria-label="Forecast availability"><thead><tr><th>Model</th><th>Forecast dates</th><th>Available</th><th>Scorable</th><th>Exclusions</th></tr></thead><tbody id="missing"></tbody></table></div></details>
+    <h3 class="mt-4">Spending by forecast date</h3><div class="chart-legend"><span><i class="legend-line predicted"></i>Predicted spending</span><span><i class="legend-line actual"></i>Actual settlement spending</span></div>
+    <div class="accuracy-chart"><canvas id="accuracyChart" role="img" aria-label="Predicted and actual settlement spending by UTC forecast date"></canvas></div><p class="chart-caption" id="accuracyRange"></p>
+  </div></section>
+
+  <section class="card mb-4" id="prediction-errors" aria-labelledby="errorsTitle"><div class="card-body">
+    <div class="section-heading"><div><div class="eyebrow">INSPECT INDIVIDUAL FORECASTS</div><h2 id="errorsTitle">Largest forecast errors</h2></div><div class="error-sort"><label class="form-label" for="sort">Rank forecasts by</label><select class="form-select form-select-sm" id="sort"><option value="optimistic">Most underestimated spending</option><option value="absolute">Largest error in either direction</option></select></div></div>
+    <p class="small text-secondary mt-2" id="errorsDescription"></p>
+    <div class="table-responsive"><table class="table errors-table" aria-label="Largest forecast errors"><thead><tr><th>Forecast made · UTC</th><th>Spending period · UTC</th><th>Predicted · sats</th><th>Actually spent · sats</th><th>Forecast error</th><th>Wallet actions</th></tr></thead><tbody id="worst"></tbody></table></div><p class="small text-secondary mb-0" id="errorsCount"></p>
+  </div></section>
+
+  <!-- FEE_STUDY -->
+
+  <section class="card notes-card mb-4" id="notes" aria-labelledby="notesTitle"><div class="card-body">
+    <h2 id="notesTitle">Methodology &amp; open questions</h2>
+    <div class="row g-4 mt-1"><div class="col-lg-6"><h3>What the data measures</h3><ul class="notes-list"><li>Spendable balance includes confirmed usable outputs above 546 sats. Dust is shown separately.</li><li>Accuracy measures settlement consumption: commit fees, reveal fees and newly stranded outputs. It does not measure the net balance change after deposits.</li><li>All error comparisons use the same forecast dates across all three models. Negative signed bias means predicted spending was too low.</li><li>Dates use UTC and reconstructed block times. Historical quotes are shown only if they were observed at the time.</li></ul></div><div class="col-lg-6"><h3>Coverage &amp; unresolved questions</h3><p class="small" id="sampleNote"></p><ul class="notes-list"><li>Does the selected model remain accurate across more independent periods and different fee conditions?</li><li>Would output fragmentation stop checkpoint posting before the projected balance reaches zero? The balance projection does not simulate input selection.</li><li>Funding and wallet actions change the observed balance path. A projected zero is an estimate; chain silence does not prove wallet failure.</li></ul></div></div>
+    <details><summary>Consumption-based exhaustion diagnostic</summary><p class="small text-secondary mt-2">Recorded at daily forecast origins. Follow-up ends at funding, other wallet actions, an unresolved package or the archive boundary.</p><pre id="exhaustion"></pre></details>
+    <details><summary>Archive provenance &amp; replay configuration</summary><pre id="manifest"></pre></details>
+  </div></section>
+  <footer>Alpen wallet analytics <span>Local report · All times UTC · 1 BTC = 100,000,000 sats</span></footer>
+</main>
+<script type="application/json" id="data">REPORT_DATA</script>
+<script>/* REPORT_SCRIPT */</script>
+</body></html>

@@ -1,8 +1,49 @@
-# Release verification — updated 2026-10-01
+# Release verification — updated 2026-10-02
+
+## First tagged release — v2.1.0
+
+The user authorized production deployment and the first release on October 2. The release includes wallet replay, experimental seasonal fee research, and durable quote/pressure/completed-block observations. The live API exposes observation context; seasonal predictions and calibrated bounds remain offline report/CLI features. The operational wallet-runway formula is unchanged.
+
+Release checks passed under Node **24.19.0**: strict types, configuration/address vectors, lint, dependency boundaries, **128 tests across 16 files**, and **18 HTTP smoke checks**. The additional role regression verifies runtime fee inserts, rejection of runtime updates/deletes, continued normal run writes, read-only access, and idempotent permission application. A scan of the 126 candidate source/documentation files found no configured credential values.
+
+Production preflight verified the existing `alpen-labs/ee-ol-wallet-monitor` Vercel project, Node 24.x, mainnet database schema 1, and both runtime/read roles. The rollout deploys the schema-1/2-compatible code before applying migration 2 and role permissions. Earlier code rejects schema 2 and is not a supported rollback target. GitHub's `production-mainnet` deployment environment was absent, so this release uses the authenticated Vercel CLI fallback; configuring tag-driven deployment remains separate setup work.
+
+Final deployment evidence and release status are recorded on the [v2.1.0 release page](https://github.com/stefanopepe/alpen-l1-monitor/releases/tag/v2.1.0). Earlier entries below preserve the verification state at the time they were written.
 
 ## Implemented locally
 
-Mainnet EE/OL descriptor derivation and dual-chain discovery; exact inventory partition and stale timestamps; bounded resumable confirmed settlement sampling; explicitly naive spendable runway; public JSON/text/Prometheus reads; authenticated cron collection and manual refresh; Postgres migrations, fencing, slot deduplication and retention; Vercel configuration and CI/deployment workflows. Signet is configuration-driven but not operationally configured. Replay has a reusable chain interface and pure snapshot boundary, not an implemented replay command. Older verification entries below describe the authentication policy in effect when those checks ran.
+Mainnet EE/OL descriptor derivation and dual-chain discovery; exact inventory partition and stale timestamps; bounded resumable confirmed settlement sampling; explicitly naive spendable runway; public JSON/text/Prometheus reads; authenticated cron collection and manual refresh; Postgres migrations, fencing, slot deduplication and retention; Vercel configuration and CI/deployment workflows. Version 2.1 adds the offline time-machine CLI/report, authenticated historical archives and continuous free fee context. Signet is configuration-driven but not operationally configured. Older verification entries below describe the scope and authentication policy in effect when those checks ran.
+
+## Time machine verification — 2.1.0
+
+### October 2 archive refresh and funding verification
+
+The original archive stopped at block 969456. Authenticated Alpen verification located EE's 310,000-sat deposit at **969457**, October 1 at **15:00:02 UTC**, transaction `8851fd44fa9607f49fcc5ada01e55171d0d050c2118b07b84014b2dc50c89bd5`, output 0. It pays EE receive index 1, has no EE inputs, and was absent from the old seal. The live collector already included it; completed replay captures previously returned their first seal without advancing.
+
+Fetch now extends completed archives, validates the prior/new finalized anchors and preserves prior seals by digest. `pnpm replay refresh` combines capture, replay and report rebuilding. Interrupted updates retain a usable old seal and resume their pinned boundary. The report opens at the latest captured balance and labels deposited spendable amounts in chart tooltips and the newest-first funding list.
+
+- Real refresh sealed **1,285 transactions / 17,438 headers / 200 addresses** through block **969554**, October 2 **07:11:32 UTC**, digest `0c6ac08628a8b594e19eaea3cefffcd6312f050ad6dd2ac1703609442efe39be`. The earlier October 1 seal remains loadable with `--seal` and its original digest.
+- Replay shows EE spendable balance **64,153 → 374,153 sats** across blocks **969456 → 969457**, exactly the deposit amount. At 969554, EE has **351,462 spendable sats / 20.3831 days**, and OL has **87,117 sats / 16.6731 days**. These are finalized replay observations, not live-tip readings.
+- The latest 90-day replay covers **956620–969554**, **25,870 wallet snapshots**. All **25,674 overlapping prediction records** exactly match the preceding audit by canonical digest. There are **632 reconciled settlements, eight deposits and 13 consolidations**, with no unresolved/ambiguous events at the seal.
+- `pnpm check` passed **100 tests in 12 files**, types/config validation, lint and import boundaries. New regressions cover deposits on receive and change chains, before/after balances, old prediction invariance, saved-seal loading, header reuse, interrupted refresh, unchanged finalized tips, reorg refusal and omission of previously sealed funding. All **18 HTTP smoke checks** passed.
+- Browser verification confirmed the latest-block default, +310,000-sat funding row and navigation to its exact confirmation block. Generated archives/report contained **zero credential matches**. Logical sizes: archive with retained prior seal **26,760,526 bytes**, audit **93,028,717 bytes**, HTML **11,816,891 bytes**.
+
+### October 2 dashboard refinement
+
+The self-contained report now bundles Bootstrap 5.3.8 and Chart.js 4.5.1. The top-level wallet/model selectors have focus/hover explanations; EE and OL have their full roles. The primary chart shows actual spendable balance and the original model projection through a dated zero-balance marker, with UTC ticks and a recorded-data boundary. Scoring controls are grouped below the chart, error rows state the exact spending period and how far the forecast was too low/high, and interpretation/open questions sit at the bottom. Saved forecasts, outcomes and scores were reused without modification.
+
+`pnpm check` passed **96 tests in 11 files**, type/config validation, lint and import boundaries. Four new chart-data cases verify the zero intercept, model selection, future deposits, unavailable/zero-rate predictions and single-block coverage. All **18 HTTP smoke checks** passed after dependency changes. Browser checks verified wallet/model changes, tooltip text, error-row navigation, date and block controls, play/pause, filtering and sorting. Screenshots confirmed visible date ticks and the zero marker; the browser reported no warnings or errors. The refreshed report is approximately **11.6 MB** and loads its libraries locally.
+
+### October 1 capture and audit
+
+- `pnpm check` passed: strict types, descriptor/config validation, ESLint, dependency boundaries and **92 tests across ten files**. `pnpm smoke` passed all **18 HTTP checks**. No migration or new scheduler was introduced; the version is prepared for the existing `v2.1.0` tag workflow, not deployed.
+- Regression coverage verifies future-data removal/modification cannot affect an earlier prediction, backward seeks agree with fresh reconstruction, delayed/multiple reveals, same-block spends, backward timestamps, future address usage, discovery ceilings, missing parents/records, incomplete archives, digest/ancestry failures, deterministic outputs, fixed-window baselines, unresolved outcomes, optimistic error signs, deposit handling and censoring. Corrupting reveal fees produces an accounting discrepancy; deliberately optimistic forecasts produce underprediction errors.
+- Collector integration verifies failed fee recommendations still allow wallet collection and persist a versioned run envelope. Optional quote context survives database-only reads. Legacy snapshots and array-shaped runs remain readable. Import checks prohibit replay modules from depending on database/API modules. A secret-value scan over source, archive, observation export and report found **zero credential matches**.
+- Completed a real authenticated **Alpen** capture through finalized block **969456**: **1,266 transactions, 17,340 contiguous headers, 200 derived addresses**, archive digest `3ffb038bcae209375433b4c15fabacdcad397176369b25a5485503360ae99c0f`. The offline run replayed **12,953 heights / 25,906 wallet snapshots**, July 3–October 1, with 30-day warm-up and no historical quote substitutions. All 623 complete settlement packages reconcile; no unresolved or ambiguous packages remain at this seal.
+- Read-only observation export succeeded against the configured mainnet database: **15 retained legacy run records**, no fee quotes yet. Replaying with that export leaves historical quote context unavailable. Continuous quotes begin when the new collector code is deployed.
+- Final logical sizes: archive **19,789,084 bytes**; audit **91,658,084 bytes**, including **11,043,832 bytes** of self-contained HTML. The outputs remain in ignored `.local/replay/mainnet`, `.local/replay/audit-mainnet` and `.local/replay/observations.json`.
+- Browser verification exercised EE/OL selection, model/horizon filters, intervention-free and non-overlapping sampling, date/height jumps, previous/next, slider, play/pause, training disclosure and worst-prediction sorting/jumps. The report was visually inspected and reloaded after the final offline rebuild.
+- On matched five-day daily windows, EE's current MAE was **17.9% worse** than the seven-day mean (36 origins), while OL's was **13.6% better** (26). Underprediction occurred on **91.7% / 73.1%** respectively. Intervention-free comparisons shrink to **0.8% worse / 2.8% better**. Only five EE and four OL intervention-free, non-overlapping origins remain. See [full methodology, largest errors and coverage limits](time-machine.md).
 
 ## Executed checks
 
@@ -71,6 +112,21 @@ Scheduled run `267b5a4c-f551-41f8-a542-2828e6496f5b` completed successfully from
 The release-tag workflow passed `actionlint` 1.7.12 and 18 local guard cases covering stable tag formats, missing deployment configuration and tag/app-version agreement. Exact tag checkout and the required manual tag input were also verified. No deployment credentials were used in these checks.
 
 1. For tag-driven CI deployment, configure GitHub environment `production-mainnet` with the two secrets and two variables listed in the runbook, then push the first matching version tag. The workflow is prepared; a successful tag-triggered cloud deployment remains unverified.
-2. Perform the independent same-tip inventory cross-check. Grafana alerts, selector simulation and historical replay remain outside steps 1–2.
+2. Perform the independent same-tip live inventory cross-check. Grafana alerts and selector simulation remain outside steps 1–2; historical replay was subsequently implemented under the explicit time-machine scope above.
 
 Detailed commands and role permissions are in [deployment.md](deployment.md).
+
+## Seasonal fee experiment — October 2, 2026, local verification
+
+Prepared on `codex/seasonal-fee-forecast`, preserving the existing time-machine work. `pnpm check` passed under Node **24.21.0**: strict type checking, configuration/address vectors, ESLint, dependency boundaries and **116 tests in 15 files**. `pnpm smoke` passed **18 HTTP checks** with disconnected storage and ephemeral tokens. No deployment was performed.
+
+New fee tests cover coarse-bucket merging, archive tampering, incomplete history, future-data leakage, seasonal recovery, pressure freshness/failure/overflow/decay, subsecond observations, resolved-only calibration and matched baselines. Portable report round-tripping and optional replay attachment leave wallet forecast files unchanged.
+
+Public mempool history capture produced 5,589 non-overlapping buckets across four years. One live projected-block snapshot drives the current pressure curve; historical pressure scores and pressure p50/p90 remain unavailable. The real walk-forward findings and archive digest are in [seasonal-fees.md](seasonal-fees.md). Seasonal central error improves, while measured p90 coverage remains below 90%.
+
+Browser checks verified the standalone and combined reports, all three current curves, one-day/non-overlapping controls, annual pattern disclosure, and the combined report's Seasonal fees navigation. No browser console errors or warnings were recorded. Saved HTML and study data remain in ignored `.local/fees/study/`; the attached wallet report is `.local/replay/audit-mainnet/report.html`.
+
+
+## Local fee hardening (unreleased, October 2)
+
+`pnpm check`: 127 tests, type/config validation, lint and dependency boundaries passed. `pnpm smoke`: 18 local HTTP checks passed with database URLs disabled. New tests cover retention beyond run cleanup, fractional block fees, independent provider failures, immutable archive refreshes, delayed availability, causal calibration, training-only pressure challengers, frozen plan tampering and replay forecast selection. The portable fee report and existing combined replay report were rebuilt and checked in the browser. A future held-out plan is saved locally; no operational promotion, migration against production, release tag or deployment occurred. See [fee evidence and operating instructions](seasonal-fees.md#observation-and-evaluation-hardening-local-iteration).

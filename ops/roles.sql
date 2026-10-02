@@ -11,3 +11,5 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT ON SEQUENCES TO mon
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO monitor_read;
 -- Apply a database-specific REVOKE CONNECT FROM PUBLIC, then grant CONNECT only
 -- to these two roles and the migrator. Substitute the actual database identifier.
+-- Fee evidence is append-only for the runtime; only the schema owner may manage it.
+REVOKE UPDATE,DELETE ON fee_observations FROM monitor_app;

@@ -1,4 +1,4 @@
-# Deploy steps 1–2 to Vercel
+# Deploy the wallet monitor to Vercel
 
 The production app is `https://ee-ol-wallet-monitor.vercel.app/`, in the `alpen-labs` Vercel team, backed by Neon. Local and Vercel collectors write to the same mainnet database. The steps below also document how to reproduce the setup.
 
@@ -49,7 +49,7 @@ Alchemy may be configured separately for RPC-only future uses; it cannot substit
 
 ## 3. Release tags and deployment
 
-Production releases use **Git tags** in `vMAJOR.MINOR.PATCH` format, matching `package.json`'s version. Pushing a tag triggers `.github/workflows/deploy.yml`: it checks out that exact tag, validates the version and deployment configuration, runs `pnpm check` and `pnpm smoke`, applies additive database migrations, then deploys to the existing production project. Vercel deployment metadata records `releaseTag` and `releaseCommit`. A GitHub Release page is optional; the tag push is the trigger.
+Production releases use **Git tags** in `vMAJOR.MINOR.PATCH` format, matching `package.json`'s version. Pushing a tag triggers `.github/workflows/deploy.yml`: it checks out that exact tag, validates the version and deployment configuration, runs `pnpm check` and `pnpm smoke`, deploys schema-compatible code to the existing production project, then applies additive database migrations and runtime role permissions. This ordering is required for 2.1.0: the previous collector rejects schema 2, while the new collector supports schemas 1 and 2. Vercel deployment metadata records `releaseTag` and `releaseCommit`. A GitHub Release page is optional; the tag push is the trigger.
 
 Git automatic deployment is disabled in `vercel.json`, so merging or pushing `main` does not change production. This follows [Vercel's tag deployment approach](https://vercel.com/kb/guide/can-you-deploy-based-on-tags-releases-on-vercel).
 
@@ -68,13 +68,13 @@ These four entries configure GitHub's deployment job. The application's existing
 
 ### Publish a version
 
-For the first tag, the current app version is `2.0.0`; after the GitHub environment is configured and this workflow is on `main`, run from the repository:
+The first tagged release is `v2.1.0`. After the GitHub environment is configured and the release commit is on `main`, run from the repository:
 
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v2.0.0 -m "Release v2.0.0"
-git push origin v2.0.0
+git tag -a v2.1.0 -m "Release v2.1.0"
+git push origin v2.1.0
 ```
 
 For subsequent releases, bump `package.json`'s version and update the changelog, commit and push those changes to `main`, then create and push a new matching tag. Never move an existing release tag. An ordinary commit alone does not publish a release.
@@ -87,7 +87,15 @@ For a deliberate redeployment or rollback, use **Actions → Deploy mainnet rele
 
 If a manual dashboard deployment is necessary, open **Vercel → Deployments → ⋯ → Create Deployment** and select the exact release commit for Production. Verify the displayed source commit matches the tag. Redeploying an older deployment rebuilds that older source; it does not pick up a new main-branch commit. See the [Vercel dashboard deployment flow](https://vercel.com/changelog/manually-create-deployments-by-commit-or-branch-in-the-dashboard).
 
-Keep the repository **private**: it contains watch-only descriptors and the supplied plan/brief. If it must become public, first externalise descriptor strings and remove private wallet details from documentation/history; do not simply change visibility. Smart-card SSH access to the GitHub remote works. The available CLI/connector API credentials cannot access it, so configure deployment secrets through the repository settings or use direct Vercel CLI deployment once Vercel and database access exist.
+The repository is currently public. Keep credentials, private exports and `.local` artifacts out of Git and deployment uploads. The October 2 release preflight verified GitHub API/HTTPS access; smart-card SSH signing was unavailable. GitHub's `production-mainnet` environment was not yet configured, so the first release can use authenticated Vercel CLI deployment to the same existing project:
+
+```sh
+pnpm exec vercel link --yes --project ee-ol-wallet-monitor --scope alpen-labs
+pnpm exec vercel deploy --prod --yes --meta releaseTag=v2.1.0 --meta "releaseCommit=$(git rev-parse HEAD)"
+pnpm migrate --init-network mainnet --apply-roles
+```
+
+Run these from the tested release commit, with private local credentials available. Apply migration 2 only after deployment succeeds. This fallback does not configure future GitHub tag deployments. A failed tag workflow must remain visible until the environment is configured and a deployment succeeds.
 
 ## 4. Verify the production domain
 
@@ -109,9 +117,16 @@ Create `config/networks/signet.json` using the mainnet schema with `network: sig
 
 ## Operations and rollback
 
+Version **2.1.0** adds the local [time machine](time-machine.md) and continuous fee observations. Release it through the existing matching-tag workflow. It adds migration 2 for durable fee observations and needs no new application credential or scheduler. Keep `ALPEN_ESPLORA_TOKEN` configured; mempool's recommendation endpoint is public and free. After deployment, inspect a newly completed run for `results.schemaVersion = 1`, `feeContext`, and compact wallet forecasts. Confirm both wallets still collect if the quote is unavailable, and that JSON/text reads show the quote's observation time and freshness. Old array-shaped run records and snapshots without fee context remain supported. Do not upload `.local/replay` artifacts to Vercel; replay/report are local tools. See [release verification](release-verification.md) for the deployed release status.
+
 - Inspect `runs`, `provider_errors`, `wallet_state` and snapshot timestamps. A failed wallet does not erase its last good data or stop the other wallet.
 - Inventory writes, daily samples and saved history are one fenced transaction; HTTP fetching never runs inside a database transaction.
 - Collection maintenance rolls up old snapshot counts/extrema before deleting raw rows in the same transaction. Latest state survives retention. Daily inventories are kept for future replay evidence.
 - Roll back by redeploying a prior tag with compatible additive migrations. Never drop tables or rewrite migration checksums to force a rollback. Wallet replacement requires an explicit migration/re-registration procedure; startup refuses silent identity changes.
 
 Relevant platform contracts: [Vercel Node functions](https://vercel.com/docs/functions/runtimes/node-js), [Vercel cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs), [Esplora API](https://github.com/Blockstream/esplora/blob/master/API.md).
+
+
+## Durable fee evidence — 2.1.0
+
+Release 2.1.0 includes `0002_fee_observations.sql`. After deploying the schema-compatible collector, run `pnpm migrate --init-network mainnet --apply-roles` to apply migration 2 and `ops/roles.sql`, then verify `feeContext.persistence = durable`, independent pressure/completed-block timestamps and a successful durable export. Do not roll back to 2.0.0 after migration 2: its startup check rejects schema 2. Use a schema-2-compatible fix or release instead. The 2.1.0 runtime remains compatible with schema 1; missing storage is labelled unavailable while inventory/runway continue. The new evidence table has no automatic run-retention cleanup. Back up/export it and review storage growth. Refer to the [operating procedure](seasonal-fees.md#observation-and-evaluation-hardening-local-iteration) for frozen evaluations.

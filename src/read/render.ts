@@ -14,6 +14,9 @@ export function renderText(model: ReadModel): string {
       `Settlement sample: ${r.sampleSize} | history complete: ${r.historyComplete}`);
     if (s.ceilingHit.receive || s.ceilingHit.change) lines.push('DISCOVERY CEILING: balances are LOWER BOUNDS; runway unavailable.');
     if (s.networkTipOld) lines.push('CHAIN TIP OLD: investigate provider/network freshness.');
+    if (s.feeContext) lines.push(`Network fee context (mempool, ${s.feeContext.observedAt}): ${w.feeContextStale ? 'STALE / UNAVAILABLE' : `${s.feeContext.rates?.fastestFee} sat/vB fastest recommendation`}. Informational; not a runway input.`);
+    if (s.feeContext?.pressure) lines.push(`Pressure collected ${s.feeContext.pressure.observedAt}: ${s.feeContext.pressure.status !== 'available' ? 'UNAVAILABLE' : Date.parse(model.readAt) - Date.parse(s.feeContext.pressure.observedAt) > 1800000 ? 'STALE' : 'AVAILABLE / UNVALIDATED'}.`);
+    if (s.feeContext?.completed) lines.push(`Completed-block fees collected ${s.feeContext.completed.observedAt}: ${s.feeContext.completed.status}; durable evidence: ${s.feeContext.persistence ?? 'legacy run retention only'}.`);
     if (!s.deployedBuildConfirmed) lines.push('Deployed sequencer build unconfirmed.');
   }
   return lines.join('\n') + '\n';

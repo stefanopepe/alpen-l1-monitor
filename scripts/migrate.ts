@@ -41,6 +41,14 @@ try {
     for (const p of v.config.providers) await c.query('INSERT INTO provider_errors(network,provider) VALUES($1,$2) ON CONFLICT DO NOTHING', [v.config.network, p.name]);
     await c.query('COMMIT');
   } catch (e) { await c.query('ROLLBACK'); throw e; }
+  if (process.argv.includes('--apply-roles')) {
+    await c.query('BEGIN');
+    try {
+      await c.query(readFileSync('ops/roles.sql', 'utf8'));
+      await c.query('COMMIT');
+    } catch (e) { await c.query('ROLLBACK'); throw e; }
+    console.log('Runtime and read-only role permissions applied.');
+  }
   console.log(`Database initialised for ${v.config.network}; no credentials emitted.`);
 } catch (e) { console.error(safeError(e)); process.exitCode = 1; }
 finally { await c.end(); }

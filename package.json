@@ -1,6 +1,6 @@
 {
   "name": "bridge-wallet-monitor",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,6 +8,8 @@
   },
   "packageManager": "pnpm@11.25.0",
   "scripts": {
+    "fees": "node --import tsx scripts/fees.ts",
+    "replay": "node --env-file-if-exists=.env --import tsx scripts/replay.ts",
     "dev": "node --env-file-if-exists=.env --import tsx scripts/dev.ts",
     "build": "pnpm typecheck && pnpm validate-config",
     "typecheck": "tsc --noEmit",
@@ -25,19 +27,23 @@
     "@scure/base": "2.4.0",
     "@scure/bip32": "2.4.0",
     "@vercel/functions": "3.9.9",
+    "bootstrap": "5.3.8",
+    "chart.js": "4.5.1",
     "pg": "8.23.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "typescript": "6.0.3",
-    "vitest": "5.0.3",
-    "tsx": "4.23.15",
-    "eslint": "10.11.0",
-    "typescript-eslint": "8.71.0",
-    "dependency-cruiser": "18.4.0",
-    "vercel": "61.1.0",
     "@electric-sql/pglite": "0.5.8",
+    "@types/bootstrap": "5.2.11",
     "@types/node": "24.10.1",
-    "@types/pg": "8.15.6"
+    "@types/pg": "8.15.6",
+    "dependency-cruiser": "18.4.0",
+    "esbuild": "0.28.2",
+    "eslint": "10.11.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vercel": "61.1.0",
+    "vitest": "5.0.3"
   }
 }

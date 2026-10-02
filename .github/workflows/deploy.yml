@@ -61,11 +61,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm smoke
-      - name: Apply additive migrations over direct connection
-        run: pnpm migrate --init-network mainnet
-        env:
-          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}
       - name: Deploy production functions and cron
         run: pnpm exec vercel deploy --prod --yes --meta "releaseTag=$RELEASE_TAG" --meta "releaseCommit=$(git rev-parse HEAD)"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # v2.1.0 supports both schemas. Deploy it before migration 2 because the
+      # previous collector rejects any schema version above 1.
+      - name: Apply additive migrations and runtime permissions over direct connection
+        run: pnpm migrate --init-network mainnet --apply-roles
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}

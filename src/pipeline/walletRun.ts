@@ -1,8 +1,7 @@
 import { MONITOR_VERSION } from '../version.js';
 import { Budget, Esplora } from '../chain/esplora.js';
 import { ProviderError, safeError } from '../chain/errors.js';
-import { discover, inventory } from '../discovery/scan.js';
-import { sampleHistory } from '../extract/history.js';
+import { scanWalletView } from './viewRun.js';
 import { computeWalletSnapshot } from './snapshot.js';
 import type { ValidatedConfig } from '../config/load.js';
 import type { WalletConfig } from '../config/schema.js';
@@ -19,8 +18,8 @@ export async function scanWallet(v: ValidatedConfig, wallet: WalletConfig, previ
     const view = new Esplora(provider, budget);
     try {
       if (await view.blockHashAt(cfg.chain.checkpoint.height) !== cfg.chain.checkpoint.hash) throw new ProviderError(provider.name, 'wrong_network');
-      const scan = await discover(view, cfg, wallet, v.wallets.get(wallet.id)!, previous.addresses);
-      const { utxos, tip } = await inventory(view, scan.addresses);
+      let inventoryRequests = 0;
+      const scan = await scanWalletView(v, wallet, previous, view, asOfEpoch, { afterInventory: async tip => {
       const ref = cfg.providers[(providerIndex + 1) % cfg.providers.length];
       let reference = null;
       if (ref && ref.name !== provider.name) {
@@ -31,9 +30,10 @@ export async function scanWallet(v: ValidatedConfig, wallet: WalletConfig, previ
       }
       if (reference && (reference.height - tip.height > provider.max_tip_lag_blocks ||
         (asOfEpoch - tip.blockTime > cfg.collection.max_tip_age_s && reference.blockTime > tip.blockTime))) throw new ProviderError(provider.name, 'stale_tip');
-      const inventoryRequests = budget.used;
+      inventoryRequests = budget.used;
       view.budget = new Budget(deadline, cfg.collection.max_requests_history, provider.name);
-      const history = await sampleHistory(view, scan.addresses, previous.history, cfg, tip, asOfEpoch);
+      } });
+      const { utxos, tip, history } = scan;
       const snapshot = computeWalletSnapshot({
         asOfEpoch, utxos, settlements: history.settlements, estimator: cfg.estimator, historyComplete: history.complete,
         meta: { network: cfg.network, wallet: wallet.id, asOf: asOf.toISOString(), finishedAt: new Date().toISOString(), provider: provider.name,

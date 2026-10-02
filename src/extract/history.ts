@@ -9,12 +9,13 @@ export interface HistoryState {
   addresses: Record<string, AddressHistory>; transactions: Record<string, ChainTx>; reveals: Record<string, ChainTx[]>;
 }
 export const emptyHistory = (): HistoryState => ({ addresses: {}, transactions: {}, reveals: {} });
-export async function sampleHistory(view: ChainView, addresses: readonly AddressRecord[], previous: HistoryState, cfg: NetworkConfig, tip: Tip, asOf: number) {
+export async function sampleHistory(view: ChainView, addresses: readonly AddressRecord[], previous: HistoryState, cfg: NetworkConfig, tip: Tip, asOf: number, exhaustive = false) {
   const state = structuredClone(previous), horizon = asOf - cfg.estimator.window_days * 86400;
   const scripts = new Set(addresses.map(a => a.script));
   const fail = (): never => { throw new ProviderError(view.provider, 'inconsistent'); };
   const frozen = (tx: ChainTx) => tx.status.confirmed && tip.height - tx.status.block_height! >= cfg.chain.finality_depth;
   let bounded = false;
+  const pageCap = exhaustive ? Infinity : cfg.collection.history_page_cap;
   try {
     // Revalidate all unfrozen cached transactions; the confirmed history contains no mempool samples.
     for (const [id, tx] of Object.entries(state.transactions)) {
@@ -35,7 +36,7 @@ export async function sampleHistory(view: ChainView, addresses: readonly Address
       let cursor: string | undefined, pages = 0, joined = false, done = false;
       const visited = new Set<string>();
       // Always refresh the head, then join only this address's known frozen history.
-      while (!done && pages < cfg.collection.history_page_cap) {
+      while (!done && pages < pageCap) {
         const page = await view.addressTxsChain(a, cursor); pages++;
         if (page.length === 0) {
           if (h.txids.length !== address.confirmedTxCount) fail();
@@ -52,9 +53,9 @@ export async function sampleHistory(view: ChainView, addresses: readonly Address
         cursor = page.at(-1)!.txid;
         if (h.txids.length > address.confirmedTxCount) fail();
         if (h.txids.length === address.confirmedTxCount) { h.coveredSince = -1; h.cursor = null; done = true; }
-        else if (oldest < horizon) { h.coveredSince = horizon; h.cursor = null; done = true; }
+        else if (!exhaustive && oldest < horizon) { h.coveredSince = horizon; h.cursor = null; done = true; }
         else if (page.length < 25) fail();
-        else if (joined) { done = h.coveredSince !== null && (h.coveredSince === -1 || h.coveredSince <= horizon); break; }
+        else if (!exhaustive && joined) { done = h.coveredSince !== null && (h.coveredSince === -1 || h.coveredSince <= horizon); break; }
         else h.cursor = cursor;
       }
       if (!done && joined && h.cursor) {
@@ -62,7 +63,7 @@ export async function sampleHistory(view: ChainView, addresses: readonly Address
         cursor = h.cursor;
         const anchor = await view.txStatus(cursor);
         if (!anchor.confirmed || anchor.block_hash !== state.transactions[cursor]?.status.block_hash) fail();
-        while (pages < cfg.collection.history_page_cap) {
+        while (pages < pageCap) {
           const page = await view.addressTxsChain(a, cursor); pages++;
           if (!page.length) { if (h.txids.length !== address.confirmedTxCount) fail(); h.coveredSince = -1; h.cursor = null; done = true; break; }
           for (const tx of page) {

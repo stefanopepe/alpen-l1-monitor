@@ -2,6 +2,9 @@ import type { Pool, PoolClient } from 'pg';
 import type { ValidatedConfig } from '../config/load.js';
 import type { AddressRecord, Snapshot, Utxo } from '../types.js';
 import { emptyHistory, type HistoryState } from '../extract/history.js';
+import { createHash } from 'node:crypto';
+import { feeContextSchema } from '../observations/schema.js';
+import type { FeeContext } from '../types.js';
 export interface Lease { network: string; runId: string; fence: number; slot: number }
 export interface WalletState { addresses: AddressRecord[]; history: HistoryState }
 export class Store {
@@ -10,7 +13,7 @@ export class Store {
     const stamp = await this.pool.query('SELECT network FROM network_stamp');
     if (stamp.rows.length !== 1 || stamp.rows[0].network !== v.config.network) throw new Error('E_DB_NETWORK');
     const schema = await this.pool.query('SELECT max(version) AS version FROM schema_migrations');
-    if (schema.rows[0].version !== 1) throw new Error('E_DB_SCHEMA');
+    if (![1, 2].includes(schema.rows[0].version)) throw new Error('E_DB_SCHEMA');
     const wallets = await this.pool.query('SELECT wallet, key_identity FROM wallets WHERE network=$1', [v.config.network]);
     if (wallets.rowCount !== v.wallets.size) throw new Error('E_DB_WALLETS');
     for (const [id, w] of v.wallets) if (!wallets.rows.some(row => row.wallet === id && row.key_identity === w.keyIdentity)) throw new Error('E_WALLET_IDENTITY_CHANGED');
@@ -20,6 +23,23 @@ export class Store {
   }
   async finishRun(runId: string, status: string, results: unknown) {
     await this.pool.query('UPDATE runs SET status=$2,results=$3,finished_at=now() WHERE run_id=$1', [runId, status, JSON.stringify(results)]);
+  }
+  async preserveFees(network: string, runId: string, context: FeeContext): Promise<'durable' | 'unavailable'> {
+    // A missing migration, missing grant or failed archive write must not block wallets.
+    try {
+      const data = feeContextSchema.parse(context);
+      delete data.persistence;
+      const sha256 = createHash('sha256').update(JSON.stringify(data)).digest('hex');
+      const observedAt = [data.observedAt, data.pressure?.observedAt, data.completed?.observedAt]
+        .filter((t): t is string => !!t).sort().at(-1)!;
+      const result = await this.pool.query(`INSERT INTO fee_observations(network,run_id,observed_at,schema_version,sha256,data)
+        VALUES($1,$2,$3,1,$4,$5) ON CONFLICT DO NOTHING RETURNING sha256`, [network, runId, observedAt, sha256, JSON.stringify(data)]);
+      if (!result.rowCount) {
+        const old = await this.pool.query('SELECT sha256 FROM fee_observations WHERE network=$1 AND run_id=$2', [network, runId]);
+        if (old.rows[0]?.sha256 !== sha256) return 'unavailable';
+      }
+      return 'durable';
+    } catch { return 'unavailable'; }
   }
   async acquire(network: string, runId: string, ttl: number, interval: number, force: boolean): Promise<Lease | null> {
     const r = await this.pool.query(`INSERT INTO run_lease(network,holder,fence,expires_at)

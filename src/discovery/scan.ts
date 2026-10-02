@@ -4,7 +4,8 @@ import { deriveAddress } from '../derive/address.js';
 import type { ChainView } from '../chain/view.js';
 import { ProviderError } from '../chain/errors.js';
 import type { AddressRecord, Tip, Utxo } from '../types.js';
-export async function discover(view: ChainView, cfg: NetworkConfig, wallet: WalletConfig, parsed: ParsedWallet, previous: readonly AddressRecord[]) {
+export type AddressDeriver = (...args: Parameters<typeof deriveAddress>) => { address: string; script: string };
+export async function discover(view: ChainView, cfg: NetworkConfig, wallet: WalletConfig, parsed: ParsedWallet, previous: readonly AddressRecord[], derive: AddressDeriver = deriveAddress) {
   const addresses: AddressRecord[] = [], ceilingHit = { receive: false, change: false };
   for (const chain of [0, 1] as const) {
     let gap = 0;
@@ -12,7 +13,7 @@ export async function discover(view: ChainView, cfg: NetworkConfig, wallet: Wall
     const { ceiling, gap_limit, min_indices } = wallet.gap_scan;
     if (oldMax >= ceiling) throw new Error('E_DISCOVERY_CONFIG_SHRINK');
     for (let index = 0; index < ceiling; index++) {
-      const derived = deriveAddress(parsed, chain, index, cfg.chain.bech32_hrp);
+      const derived = derive(parsed, chain, index, cfg.chain.bech32_hrp);
       const old = previous.find(a => a.chain === chain && a.index === index);
       if (old && (old.address !== derived.address || old.script !== derived.script)) throw new Error('E_WALLET_IDENTITY_CHANGED');
       const stats = await view.addressStats(derived.address);
@@ -26,7 +27,7 @@ export async function discover(view: ChainView, cfg: NetworkConfig, wallet: Wall
   // Keep all previously derived addresses in W even when a later scan stops sooner.
   const keys = new Set(addresses.map(a => a.address));
   for (const a of previous) if (!keys.has(a.address)) {
-    const expected = deriveAddress(parsed, a.chain, a.index, cfg.chain.bech32_hrp);
+    const expected = derive(parsed, a.chain, a.index, cfg.chain.bech32_hrp);
     if (expected.address !== a.address || expected.script !== a.script) throw new Error('E_WALLET_IDENTITY_CHANGED');
     addresses.push(a);
   }

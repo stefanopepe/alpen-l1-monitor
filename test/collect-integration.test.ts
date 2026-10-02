@@ -33,6 +33,7 @@ afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 it('one failed wallet cannot starve the other; successful HTTP reads use only persisted data', async () => {
   const v = config(), ee = deriveAddress(v.wallets.get('ee')!, 0, 0, 'bc').address, ol = deriveAddress(v.wallets.get('ol')!, 0, 0, 'bc').address;
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (new URL(url).hostname === 'mempool.space') return new Response('private upstream error body', { status: 500 });
     const path = new URL(url).pathname.replace('/api', '');
     if (path.startsWith('/block-height/')) return new Response(v.config.chain.checkpoint.hash);
     if (path === '/blocks/tip/hash') return new Response(hash(200));
@@ -45,6 +46,9 @@ it('one failed wallet cannot starve the other; successful HTTP reads use only pe
   vi.stubEnv('NETWORK', 'mainnet');
   const result = await runCollect(true);
   expect(result.wallets).toMatchObject([{ wallet: 'ee', status: 'failed', error: 'E_PROVIDER_SERVER_ERROR' }, { wallet: 'ol', status: 'ok' }]);
+  expect(result.feeContext).toMatchObject({ status: 'unavailable', rates: null, persistence: 'unavailable', completed: { status: 'unavailable' } });
+  const storedRun = (await query('SELECT results FROM runs WHERE finished_at IS NOT NULL')).rows[0] as { results: { schemaVersion: number; wallets: unknown[] } };
+  expect(storedRun.results).toMatchObject({ schemaVersion: 1, feeContext: { status: 'unavailable' }, wallets: [{ wallet: 'ee' }, { wallet: 'ol', forecast: { tip: { height: 200 } } }] });
   expect((await query("SELECT * FROM wallet_state WHERE wallet='ee'")).rows).toHaveLength(0);
   expect((await query("SELECT * FROM wallet_state WHERE wallet='ol'")).rows).toHaveLength(1);
   vi.stubEnv('NETWORK', 'mainnet');
@@ -53,6 +57,7 @@ it('one failed wallet cannot starve the other; successful HTTP reads use only pe
   expect(json.status).toBe(200);
   const body = await json.json();
   expect(body.wallets[1].snapshot.composition.spendableSats).toBe(700);
+  expect(body.wallets[1].snapshot.feeContext).toMatchObject({ status: 'unavailable', rates: null });
   expect(body.wallets[0].stale).toBe(true);
   const text = await statusHandler.fetch(new Request('https://example.test/api/status?format=text'));
   expect(text.status).toBe(200); expect(await text.text()).toContain('Spendable: 700 sats');
