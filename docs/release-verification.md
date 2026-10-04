@@ -1,5 +1,16 @@
 # Release verification — updated 2026-10-04
 
+## Final report release — v2.4.1
+
+Live inspection caught a small Signet EE fee decrease being rounded to an unchanged arrow. Version 2.4.1 preserves the direction and displays `<0.1%` for small changes. Exact equality (within floating-point tolerance) retains the flat arrow. The regression covers both directions and equality. All **186 tests**, build/config checks, lint and dependency checks passed again on Node 24.19.0.
+
+Commit `81727daa9e511021ec21dc2d08b709f906dc2b27`, tagged locally `v2.4.1`, is Ready on both production aliases:
+
+- [Mainnet](https://ee-ol-wallet-monitor.vercel.app/): `dpl_9oUKeZByf8cDPuhaG3azKr8PgCkW`.
+- [Signet](https://ee-ol-wallet-monitor-signet.vercel.app/): `dpl_PkHDndtHAZBZPvUkN6ET1nHjiScd`.
+
+The final deployment repeats all 14 public endpoint checks and reports version 2.4.1 through `x-monitor-version`. Browser verification confirms the Signet EE downward `<0.1%` trend and unchanged OL trend. The preceding Signet retry finished successfully for both wallets; all four wallet snapshots contain the new report data. The collector is unchanged from 2.4.0, so its fresh snapshots remain valid. Historical Signet posting entries without retained decoding headers remain explicitly labelled unreadable; current readable postings and costs are shown. GitHub publishing remains blocked as documented below. Final verification artifacts are under ignored `.local/releases/v2.4.1/`.
+
 ## Wallet report release — v2.4.0
 
 The dashboard uses the agreed report layout with UTC and browser-local timestamps, a shared latest posted Strata epoch, mined-block median fee summaries, four mempool priorities and 24-hour quote averages. Each wallet shows the latest publication's combined commit/reveal fees, effective sat/vB and comparisons against its own preceding 24-hour/seven-day publication rates. The next-transaction estimate uses confirmed commit intervals and stays overdue when missed. Raw transaction IDs are collapsed into details.
