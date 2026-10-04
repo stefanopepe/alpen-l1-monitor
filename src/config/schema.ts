@@ -27,6 +27,7 @@ export const walletSchema = z.object({
 }).strict();
 export const networkSchema = z.object({
   schema_version: z.literal(1), network: z.string().regex(/^[a-z0-9-]+$/), chain: chainSchema,
+  checkpoint_reporting: z.object({ magic_hex: z.string().regex(/^[0-9a-f]{8}$/) }).strict().optional(),
   wallets: z.array(walletSchema).min(1), providers: z.array(providerSchema).min(1),
   estimator: z.object({ window_days: positive, short_window_days: positive, min_sample: positive,
     min_sample_short: positive, min_intervals: positive, min_intervals_short: positive }).strict(),

@@ -49,6 +49,8 @@ Collection authentication uses `Authorization: Bearer <CRON_SECRET>` and rejects
 
 Mainnet selects the private Alpen Esplora using `ALPEN_ESPLORA_TOKEN`, with Blockstream and mempool as public failovers. Put the raw token in the local `.env` for local collection and in Vercel's Sensitive Production variables for cloud collection; see the [deployment runbook](docs/deployment.md). A public-primary configuration is allowed only for Stage 0 and is explicitly labelled in text, JSON and metrics. Alchemy is optional **RPC-only** (`src/chain/rpc.ts`); it is never a wallet data source and is not needed for this release.
 
+The report also includes the [most recent OL epoch and EE DA update posted to L1](docs/l1-epoch.md), decoded using Alpen v0.3.2. OL shows the checkpoint epoch, consumed L1 height and terminal OL slot. EE independently shows its DA update sequence, terminal EVM block and fully confirmed chunk count. Both include posting transactions and explicit coverage and verification limits.
+
 ## Time machine
 
 ```sh

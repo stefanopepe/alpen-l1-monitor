@@ -1,3 +1,5 @@
+import { eeDaReportLines } from '../../read/eeDa.js';
+import { epochReportLines } from '../../read/epoch.js';
 import Chart from 'chart.js/auto';
 import type { ChartDataset, ChartOptions, Plugin } from 'chart.js';
 import { Tooltip } from 'bootstrap';
@@ -149,6 +151,10 @@ function renderBlock() {
   el<HTMLInputElement>('date').value = s.asOf.slice(0, 10);
   el<HTMLButtonElement>('prev').disabled = position === 0; el<HTMLButtonElement>('next').disabled = position === rows.length - 1;
   text('originLabel', 'Historical forecast at block ' + fmt(s.tip.height) + ' · ' + timestamp(Date.parse(s.asOf)));
+  const ol = s.wallet === 'ol' ? s : data.records.find(row => row.snapshot.wallet === 'ol' && row.snapshot.tip.height === s.tip.height)?.snapshot;
+  const ee = s.wallet === 'ee' ? s : data.records.find(row => row.snapshot.wallet === 'ee' && row.snapshot.tip.height === s.tip.height)?.snapshot;
+  text('eeDaContext', eeDaReportLines(ee?.eeDaContext, s.tip).join('\n'));
+  text('epochContext', epochReportLines(ol?.epochContext, s.tip).join('\n'));
   text('inputCount', '· ' + s.naiveRunway.sampleSize + ' complete settlements');
   el('inventory').replaceChildren();
   for (const [name, val] of [['Spendable balance', fmt(c.spendableSats) + ' sats'], ['Stranded outputs (≤ 546 sats)', fmt(c.strandedSats) + ' sats'], ['Largest spendable output', fmt(c.largestUtxoSats) + ' sats'],

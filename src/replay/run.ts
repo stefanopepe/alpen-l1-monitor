@@ -24,7 +24,7 @@ export async function replayAt(index: ArchiveIndex, v: ValidatedConfig, height: 
     derive: (_parsed, chain, i) => { const a = known.get(chain + ':' + i); if (!a) throw new Error('E_ARCHIVE_COVERAGE'); return { address: a.address, script: a.script }; } });
   const snapshot = computeWalletSnapshot({ asOfEpoch, utxos: scan.utxos, settlements: scan.history.settlements,
     estimator: v.config.estimator, historyComplete: scan.history.complete,
-    meta: { network: v.config.network, wallet: walletId, asOf, finishedAt: asOf, provider: view.provider, tip: scan.tip,
+    meta: { eeDaContext: scan.eeDaContext, epochContext: scan.epochContext, network: v.config.network, wallet: walletId, asOf, finishedAt: asOf, provider: view.provider, tip: scan.tip,
       ceilingHit: scan.ceilingHit, addressesScanned: scan.addresses.length, requestsUsed: 0,
       primaryIsPublic: v.config.providers[0]!.tier === 'public', networkTipOld: false, historyError: scan.history.complete ? null : 'E_HISTORY_INCOMPLETE',
       monitorVersion: MONITOR_VERSION, selectorModelVersion: v.config.upstream.selector_model_version, upstreamRef: v.config.upstream.ref,

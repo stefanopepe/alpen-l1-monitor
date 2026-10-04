@@ -46,6 +46,8 @@
         <div class="col-6 col-lg-3 stat"><span>Projected runway</span><strong id="runway">—</strong><small id="runwayHelp">days at the selected model's rate</small></div>
         <div class="col-6 col-lg-3 stat"><span>Projected zero balance</span><strong id="emptyDate">—</strong><small id="emptyTime">UTC · no future funding assumed</small></div>
       </div>
+      <div class="alert alert-light border small" id="eeDaContext" style="white-space:pre-line;overflow-wrap:anywhere" aria-live="polite"></div>
+      <div class="alert alert-light border small" id="epochContext" style="white-space:pre-line;overflow-wrap:anywhere" aria-live="polite"></div>
       <div class="chart-legend"><span><i class="legend-line actual"></i>Recorded spendable balance</span><span><i class="legend-line predicted"></i>Selected model forecast</span><span><i class="legend-dot event-dot"></i>Funding or wallet action</span></div>
       <div class="burndown-chart"><canvas id="balanceChart" role="img" aria-label="Wallet balance burndown with UTC dates and projected zero-balance point"></canvas></div>
       <p class="chart-caption" id="burndownCaption"></p>

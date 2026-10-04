@@ -1,3 +1,5 @@
+import { eeDaReportLines } from './eeDa.js';
+import { epochReportLines } from './epoch.js';
 import type { ReadModel } from './model.js';
 export function renderText(model: ReadModel): string {
   const lines = [`bridge-wallet-monitor v2 | ${model.network} | read at ${model.readAt}`,
@@ -12,6 +14,8 @@ export function renderText(model: ReadModel): string {
       `Largest spendable UTXO: ${c.largestUtxoSats} sats | UTXOs: ${c.counts.total}`,
       `Naive spendable runway: ${r.days === null ? `unavailable (${r.reason})` : `${r.days.toFixed(2)} days`}`,
       `Settlement sample: ${r.sampleSize} | history complete: ${r.historyComplete}`);
+    if (w.wallet === 'ee') lines.push(...eeDaReportLines(s.eeDaContext, s.tip));
+    if (w.wallet === 'ol') lines.push(...epochReportLines(s.epochContext, s.tip));
     if (s.ceilingHit.receive || s.ceilingHit.change) lines.push('DISCOVERY CEILING: balances are LOWER BOUNDS; runway unavailable.');
     if (s.networkTipOld) lines.push('CHAIN TIP OLD: investigate provider/network freshness.');
     if (s.feeContext) lines.push(`Network fee context (mempool, ${s.feeContext.observedAt}): ${w.feeContextStale ? 'STALE / UNAVAILABLE' : `${s.feeContext.rates?.fastestFee} sat/vB fastest recommendation`}. Informational; not a runway input.`);
@@ -38,6 +42,15 @@ export function renderMetrics(model: ReadModel): string {
     metric('bridge_wallet_snapshot_available', Number(s !== null), label, 'Stored snapshot exists.');
     metric('bridge_wallet_runway_available', Number(s?.naiveRunway.days !== null && s !== null), label, 'Naive runway is available.');
     if (!s) continue;
+    if (w.wallet === 'ol') {
+      const epoch = s.epochContext;
+      metric('bridge_wallet_posted_epoch_available', Number(!!epoch?.latest), label, 'An OL checkpoint epoch was decoded from observed confirmed L1 history.');
+      metric('bridge_wallet_posted_epoch_coverage_complete', Number(!!epoch?.coverageComplete && epoch.undecodedCheckpoints === 0), label, 'Wallet discovery and retained history are complete with no undecoded checkpoint postings.');
+      if (epoch?.latest) {
+        metric('bridge_wallet_latest_posted_epoch', epoch.latest.epoch, label, 'Highest observed OL checkpoint epoch posted to Bitcoin; ASM acceptance is unverified.');
+        metric('bridge_wallet_latest_posted_epoch_block_height', epoch.latest.blockHeight, label, 'Bitcoin block containing the observed epoch reveal.');
+      }
+    }
     for (const [field, suffix] of [['spendableSats', 'spendable_sats'], ['strandedSats', 'stranded_sats'], ['balanceSats', 'balance_sats'], ['largestUtxoSats', 'largest_utxo_sats'], ['unconfirmedGtDustSats', 'unconfirmed_gt_dust_sats']] as const)
       metric(`bridge_wallet_${suffix}`, s.composition[field], label, 'Wallet inventory in satoshis, as of last update.');
     metric('bridge_wallet_discovery_ceiling_hit', Number(s.ceilingHit.receive || s.ceilingHit.change), label, 'Discovery incomplete; balances are lower bounds.');

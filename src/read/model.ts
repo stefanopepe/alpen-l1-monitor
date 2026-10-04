@@ -4,6 +4,15 @@ import type { Snapshot } from '../types.js';
 import { feeContextSchema } from '../observations/schema.js';
 const n = z.number().finite().nonnegative(), i = n.int().safe();
 export const snapshotSchema = z.object({
+  eeDaContext: z.object({ sourceRef: z.string().regex(/^[0-9a-f]{40}$/), coverageComplete: z.boolean(), pendingPublications: i, undecodedPublications: i,
+    latest: z.object({ updateSeqNo: z.string().regex(/^(0|[1-9][0-9]*)$/), lastEvmBlock: z.string().regex(/^(0|[1-9][0-9]*)$/),
+      evmTimestamp: z.string().regex(/^(0|[1-9][0-9]*)$/), version: z.literal(0), commitTxid: z.string().regex(/^[0-9a-f]{64}$/),
+      revealTxids: z.array(z.string().regex(/^[0-9a-f]{64}$/)).min(1), chunkCount: i.positive(), payloadBytes: i.positive(),
+      blockHeight: i, blockHash: z.string().regex(/^[0-9a-f]{64}$/), blockTime: i }).nullable() }).optional(),
+  epochContext: z.object({ sourceRef: z.string().regex(/^[0-9a-f]{40}$/), coverageComplete: z.boolean(), undecodedCheckpoints: i,
+    latest: z.object({ epoch: i.max(0xffffffff), l1Height: i.max(0xffffffff), l2Slot: z.string().regex(/^(0|[1-9][0-9]*)$/),
+      l2BlockId: z.string().regex(/^[0-9a-f]{64}$/), commitTxid: z.string().regex(/^[0-9a-f]{64}$/), txid: z.string().regex(/^[0-9a-f]{64}$/),
+      blockHeight: i, blockHash: z.string().regex(/^[0-9a-f]{64}$/), blockTime: i }).nullable() }).optional(),
   feeContext: z.unknown().transform(v => feeContextSchema.safeParse(v).data).optional(),
   network: z.string(), wallet: z.string(), asOf: z.iso.datetime(), finishedAt: z.iso.datetime(), provider: z.string(),
   tip: z.object({ height: i, hash: z.string().regex(/^[0-9a-f]{64}$/), blockTime: i }),

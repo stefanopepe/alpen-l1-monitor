@@ -23,7 +23,25 @@ export interface NaiveRunway {
   sampleSize: number; sampleSpanDays: number; historyComplete: boolean;
   reason: 'available' | 'no_spendable_funds' | 'discovery_incomplete' | 'history_incomplete' | 'insufficient_settlements' | 'cadence_unavailable';
 }
+export interface PostedEpoch {
+  epoch: number; l1Height: number; l2Slot: string; l2BlockId: string;
+  commitTxid: string; txid: string; blockHeight: number; blockHash: string; blockTime: number;
+}
+export interface EpochContext {
+  sourceRef: string; latest: PostedEpoch | null; coverageComplete: boolean; undecodedCheckpoints: number;
+}
+export interface PostedEeDa {
+  updateSeqNo: string; lastEvmBlock: string; evmTimestamp: string; version: 0;
+  commitTxid: string; revealTxids: string[]; chunkCount: number; payloadBytes: number;
+  blockHeight: number; blockHash: string; blockTime: number;
+}
+export interface EeDaContext {
+  sourceRef: string; latest: PostedEeDa | null; coverageComplete: boolean;
+  pendingPublications: number; undecodedPublications: number;
+}
 export interface Snapshot {
+  eeDaContext?: EeDaContext;
+  epochContext?: EpochContext;
   feeContext?: FeeContext;
   network: string; wallet: string; asOf: string; finishedAt: string; provider: string;
   tip: Tip; ceilingHit: { receive: boolean; change: boolean }; addressesScanned: number;

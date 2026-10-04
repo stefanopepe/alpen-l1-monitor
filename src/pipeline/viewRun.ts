@@ -1,3 +1,5 @@
+import { latestEeDa } from '../extract/eeDa.js';
+import { latestPostedEpoch } from '../extract/epoch.js';
 import type { ChainView } from '../chain/view.js';
 import type { ValidatedConfig } from '../config/load.js';
 import type { WalletConfig } from '../config/schema.js';
@@ -11,5 +13,10 @@ export async function scanWalletView(v: ValidatedConfig, wallet: WalletConfig, p
   const { utxos, tip } = await inventory(view, scan.addresses);
   await options.afterInventory?.(tip);
   const history = await sampleHistory(view, scan.addresses, previous.history, v.config, tip, asOf, options.exhaustive);
-  return { ...scan, utxos, tip, history };
+  const magic = v.config.checkpoint_reporting?.magic_hex ?? (v.config.network === 'mainnet' ? '53545241' : undefined);
+  const epochContext = wallet.id === 'ol' && magic ? latestPostedEpoch(history.state.transactions, new Set(scan.addresses.map(a => a.script)), tip,
+    history.complete && !scan.ceilingHit.receive && !scan.ceilingHit.change, magic) : undefined;
+  const eeDaContext = wallet.id === 'ee' ? latestEeDa(history.state.transactions, new Set(scan.addresses.map(a => a.script)), tip,
+    history.complete && !scan.ceilingHit.receive && !scan.ceilingHit.change) : undefined;
+  return { ...scan, utxos, tip, history, epochContext, eeDaContext };
 }

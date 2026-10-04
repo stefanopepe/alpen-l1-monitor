@@ -36,7 +36,7 @@ export async function scanWallet(v: ValidatedConfig, wallet: WalletConfig, previ
       const { utxos, tip, history } = scan;
       const snapshot = computeWalletSnapshot({
         asOfEpoch, utxos, settlements: history.settlements, estimator: cfg.estimator, historyComplete: history.complete,
-        meta: { network: cfg.network, wallet: wallet.id, asOf: asOf.toISOString(), finishedAt: new Date().toISOString(), provider: provider.name,
+        meta: { eeDaContext: scan.eeDaContext, epochContext: scan.epochContext, network: cfg.network, wallet: wallet.id, asOf: asOf.toISOString(), finishedAt: new Date().toISOString(), provider: provider.name,
           tip, ceilingHit: scan.ceilingHit, addressesScanned: scan.addresses.length, requestsUsed: inventoryRequests + view.budget.used,
           primaryIsPublic: cfg.providers[0]!.tier === 'public', networkTipOld: asOfEpoch - tip.blockTime > cfg.collection.max_tip_age_s,
           historyError: history.complete ? null : 'E_HISTORY_INCOMPLETE', monitorVersion: MONITOR_VERSION, selectorModelVersion: cfg.upstream.selector_model_version,
