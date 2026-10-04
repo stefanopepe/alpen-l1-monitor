@@ -88,6 +88,12 @@ it('persists report data, renders real report labels and keeps IDs in transactio
   expect(text).not.toContain('updateSeqNo');
   expect(text.split('TRANSACTION DETAILS')[0]).not.toContain(hash(22));
   expect(text).toContain(hash(22));
+  saved.publicationReport!.latest!.previous24h.averageSatVb = 3.001;
+  expect(renderText(model)).toContain('↓ <0.1%');
+  saved.publicationReport!.latest!.previous24h.averageSatVb = 2.999;
+  expect(renderText(model)).toContain('↑ <0.1%');
+  saved.publicationReport!.latest!.previous24h.averageSatVb = 3;
+  expect(renderText(model)).toContain('→ 0%');
   const legacy = { ...saved }; delete legacy.publicationReport;
   expect(snapshotSchema.parse(legacy).publicationReport).toBeUndefined();
 });

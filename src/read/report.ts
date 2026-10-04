@@ -15,8 +15,10 @@ function trend(current: number | undefined, baseline: PublicationAverage | undef
   const average = baseline.averageSatVb;
   if (current === undefined || average === null || !baseline.sampleSize) return 'Unavailable · no previous publications';
   const percent = average === 0 ? null : Math.round((current / average - 1) * 1000) / 10;
-  const arrow = current === average || percent === 0 ? '→' : current > average ? '↑' : '↓';
-  return `${arrow} ${percent === null ? current === 0 ? '0%' : 'from zero' : number(Math.abs(percent)) + '%'} · average ${number(average)} sat/vB · ${baseline.sampleSize} publications`;
+  const unchanged = Math.abs(current - average) <= Math.max(1, current, average) * 1e-12;
+  const arrow = unchanged ? '→' : current > average ? '↑' : '↓';
+  const change = unchanged ? '0%' : percent === null ? 'from zero' : percent === 0 ? '<0.1%' : number(Math.abs(percent)) + '%';
+  return `${arrow} ${change} · average ${number(average)} sat/vB · ${baseline.sampleSize} publications`;
 }
 function publicationCost(s: Snapshot): string[] {
   const latest = s.publicationReport?.latest;

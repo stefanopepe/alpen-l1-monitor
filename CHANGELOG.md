@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.1 — preserve small fee trends (2026-10-04)
+
+- Keep the correct up/down arrow when a real fee change rounds below 0.1%; display `<0.1%` instead of reporting an unchanged rate.
+
 ## 2.4.0 — readable wallet report (2026-10-04)
 
 - Replace the dashboard's diagnostic text with the agreed EE/OL report, shared latest posted Strata epoch, concise data-quality checks and collapsed transaction details.
