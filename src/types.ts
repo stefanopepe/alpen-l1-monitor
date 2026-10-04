@@ -10,6 +10,12 @@ export interface Tip { height: number; hash: string; blockTime: number }
 export interface Settlement {
   txid: string; height: number; blockTime: number; complete: boolean;
   drainSats: number | null; feeSats: number | null; weight: number | null;
+  completedAt?: number;
+}
+export interface PublicationAverage { averageSatVb: number | null; sampleSize: number; complete: boolean }
+export interface PublicationReport {
+  latest: { commitTxid: string; feeSats: number; feeRateSatVb: number; previous24h: PublicationAverage; previous7d: PublicationAverage } | null;
+  nextExpectedAt: number | null; intervalSeconds: number | null; timingSampleSize: number;
 }
 export interface Composition {
   balanceSats: number; spendableSats: number; strandedSats: number;
@@ -40,6 +46,7 @@ export interface EeDaContext {
   pendingPublications: number; undecodedPublications: number;
 }
 export interface Snapshot {
+  publicationReport?: PublicationReport;
   eeDaContext?: EeDaContext;
   epochContext?: EpochContext;
   feeContext?: FeeContext;

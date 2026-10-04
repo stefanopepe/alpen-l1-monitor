@@ -60,7 +60,7 @@ it('one failed wallet cannot starve the other; successful HTTP reads use only pe
   expect(body.wallets[1].snapshot.feeContext).toMatchObject({ status: 'unavailable', rates: null });
   expect(body.wallets[0].stale).toBe(true);
   const text = await statusHandler.fetch(new Request('https://example.test/api/status?format=text'));
-  expect(text.status).toBe(200); expect(await text.text()).toContain('Spendable: 700 sats');
+  expect(text.status).toBe(200); expect(await text.text()).toMatch(/Spendable:\s+700 sats/);
   const metrics = await metricsHandler.fetch(new Request('https://example.test/api/metrics'));
   expect(metrics.status).toBe(200); expect(await metrics.text()).toContain('bridge_wallet_spendable_sats{network="mainnet",wallet="ol"} 700');
   expect(forbiddenFetch).not.toHaveBeenCalled();

@@ -2,8 +2,12 @@ import { z } from 'zod';
 import type { Pool } from 'pg';
 import type { Snapshot } from '../types.js';
 import { feeContextSchema } from '../observations/schema.js';
+import { readFeeReport, type FeeReport } from './fees.js';
 const n = z.number().finite().nonnegative(), i = n.int().safe();
+const average = z.object({ averageSatVb: n.nullable(), sampleSize: i, complete: z.boolean() });
 export const snapshotSchema = z.object({
+  publicationReport: z.object({ latest: z.object({ commitTxid: z.string().regex(/^[0-9a-f]{64}$/), feeSats: i, feeRateSatVb: n,
+    previous24h: average, previous7d: average }).nullable(), nextExpectedAt: n.nullable(), intervalSeconds: n.nullable(), timingSampleSize: i }).optional(),
   eeDaContext: z.object({ sourceRef: z.string().regex(/^[0-9a-f]{40}$/), coverageComplete: z.boolean(), pendingPublications: i, undecodedPublications: i,
     latest: z.object({ updateSeqNo: z.string().regex(/^(0|[1-9][0-9]*)$/), lastEvmBlock: z.string().regex(/^(0|[1-9][0-9]*)$/),
       evmTimestamp: z.string().regex(/^(0|[1-9][0-9]*)$/), version: z.literal(0), commitTxid: z.string().regex(/^[0-9a-f]{64}$/),
@@ -27,6 +31,7 @@ export const snapshotSchema = z.object({
   monitorVersion: z.string(), selectorModelVersion: i, upstreamRef: z.string(), deployedBuildConfirmed: z.boolean(), configSha256: z.string(),
 });
 export interface ReadModel {
+  fees?: FeeReport;
   preview?: { capturedAt: string; sample?: boolean };
   network: string; readAt: string; primaryIsPublic: boolean;
   wallets: { wallet: string; name: string; stale: boolean; ageSeconds: number | null; snapshot: Snapshot | null; feeContextStale?: boolean }[];
@@ -50,8 +55,9 @@ export async function readModel(pool: Pool, network: string, now: Date): Promise
         stale: ageSeconds === null || ageSeconds > settings.rows[0].stale_after_s };
     });
     if (!wallets.length) throw new Error('E_DB_WALLETS');
+    const fees = await readFeeReport(c, network, now, settings.rows[0].stale_after_s, wallets.flatMap(w => w.snapshot?.feeContext ? [w.snapshot.feeContext] : []));
     await c.query('COMMIT');
-    return { network, readAt: now.toISOString(), primaryIsPublic: settings.rows[0].primary_is_public, wallets,
+    return { network, readAt: now.toISOString(), primaryIsPublic: settings.rows[0].primary_is_public, wallets, fees,
       providerErrors: errors.rows as { provider: string; total: number }[] };
   } catch { await c.query('ROLLBACK'); throw new Error('E_DATABASE_READ'); } finally { c.release(); }
 }

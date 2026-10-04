@@ -29,6 +29,7 @@ export function settlementObservation(commit: ChainTx, reveals: readonly ChainTx
   const fees = commit.fee + reveals.reduce((s, r) => s + r.fee, 0);
   if (complete && walletInput - outputs.reduce((s, v) => s + v.value, 0) !== fees) throw new Error('E_SETTLEMENT_INTEGRITY');
   return { txid: commit.txid, height: commit.status.block_height!, blockTime: commit.status.block_time!, complete,
+    ...(complete ? { completedAt: Math.max(commit.status.block_time!, ...reveals.map(r => r.status.block_time!)) } : {}),
     feeSats: complete ? fees : null, weight: complete ? commit.weight + reveals.reduce((s, r) => s + r.weight, 0) : null,
     drainSats: complete ? fees + outputs.filter(v => v.value <= 546).reduce((s, v) => s + v.value, 0) : null };
 }

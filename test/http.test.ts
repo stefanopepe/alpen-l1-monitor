@@ -44,3 +44,8 @@ it('emits both wallet liveness series even before the first successful scan', ()
   expect(text).not.toContain('NaN'); expect(text).not.toContain('bridge_wallet_naive_runway_days{');
   expect(renderText(model)).toContain('STALE / UNAVAILABLE');
 });
+it('rejects invalid client timezones before reading storage', async () => {
+  const response = await statusHandler.fetch(new Request('https://monitor.test/api/status?format=text&timezone=Mars/Test'));
+  expect(response.status).toBe(400);
+  expect(await response.json()).toEqual({ error: 'invalid_timezone' });
+});
