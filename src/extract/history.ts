@@ -4,11 +4,25 @@ import type { AddressRecord, Settlement, Tip } from '../types.js';
 import type { NetworkConfig } from '../config/schema.js';
 import { ProviderError } from '../chain/errors.js';
 import { commitOutputs, revealShaped, settlementObservation, validFee } from './classify.js';
+import { firstEnvelopeEvidence } from './envelope.js';
 export interface AddressHistory { txids: string[]; cursor: string | null; coveredSince: number | null }
 export interface HistoryState {
   addresses: Record<string, AddressHistory>; transactions: Record<string, ChainTx>; reveals: Record<string, ChainTx[]>;
 }
 export const emptyHistory = (): HistoryState => ({ addresses: {}, transactions: {}, reveals: {} });
+export function compactHistory(state: HistoryState): HistoryState {
+  // Classification needs witness counts; posting reports also need the validated
+  // first envelope's length and bounded header, not its proof/state-diff bytes.
+  const compact = (tx: ChainTx): ChainTx => {
+    const raw = { ...tx }; delete raw.envelopeEvidence;
+    const evidence = firstEnvelopeEvidence(tx);
+    return { ...raw, ...(evidence ? { envelopeEvidence: evidence } : {}), vin: tx.vin.map(({ witness, ...input }) =>
+      witness ? { ...input, witnessItemCount: witness.length } : input) };
+  };
+  return { addresses: state.addresses,
+    transactions: Object.fromEntries(Object.entries(state.transactions).map(([id, tx]) => [id, compact(tx)])),
+    reveals: Object.fromEntries(Object.entries(state.reveals).map(([id, txs]) => [id, txs.map(compact)])) };
+}
 export async function sampleHistory(view: ChainView, addresses: readonly AddressRecord[], previous: HistoryState, cfg: NetworkConfig, tip: Tip, asOf: number, exhaustive = false) {
   const state = structuredClone(previous), horizon = asOf - cfg.estimator.window_days * 86400;
   const scripts = new Set(addresses.map(a => a.script));

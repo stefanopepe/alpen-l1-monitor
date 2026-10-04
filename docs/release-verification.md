@@ -1,4 +1,12 @@
-# Release verification — updated 2026-10-02
+# Release verification — updated 2026-10-04
+
+## Signet and L1 posting progress — v2.3.0
+
+This release combines the previously deployed Signet work with OL checkpoint epochs and EE DA progress. Both network profiles retain their own descriptors, chain checkpoints, fee sources and page labels. Signet's `ALPN` checkpoint marker is configured from the October 2 capture; mainnet retains `STRA`. The captured Signet fixture decodes epoch 185 at block 324662 and is historical evidence, not a current reading or confirmation of the deployed sequencer build.
+
+The integration preserves a validated envelope length and at most 68 header bytes before compacting database history. Repeated storage round trips preserve OL epochs, EE sequence numbers and split-chunk metadata without retaining full witness payloads. Fresh malformed witnesses cannot reuse old cached evidence, provider data cannot inject the local cache, and older compacted records without headers remain explicitly undecodable until refreshed.
+
+Validation passed on Node **24.19.0**: type/configuration checks, ESLint, dependency boundaries, **177 tests across 23 files**, **20 mainnet HTTP checks** and **8 Signet HTTP checks**. Database regression coverage verifies EE posting evidence after storage. Mainnet and Signet checkpoint fixtures verify namespace separation, compact storage and confirmation boundaries. No database migration is required; stored legacy snapshots remain readable. Publishing the release tag triggers the existing mainnet deployment workflow; Signet uses its separate project and environment.
 
 ## Consolidation release — v2.2.0
 

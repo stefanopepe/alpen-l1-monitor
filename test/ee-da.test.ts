@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import { Script } from '@scure/btc-signer';
 import { txSchema, type ChainTx } from '../src/chain/schemas.js';
 import { latestEeDa } from '../src/extract/eeDa.js';
+import { compactHistory, emptyHistory } from '../src/extract/history.js';
 import { eeDaReportLines } from '../src/read/eeDa.js';
 import { snapshotSchema } from '../src/read/model.js';
 import { replayAt } from '../src/replay/run.js';
@@ -39,6 +40,8 @@ it('waits for every chunk, orders chunks by commit output and timestamps complet
   const txs = { [second.txid]: second, [reveal.txid]: reveal, [commit.txid]: commit };
   expect(latestEeDa(txs, scripts, tip, true).latest).toMatchObject({ updateSeqNo: '285', chunkCount: 2,
     blockHeight: second.status.block_height, blockTime: second.status.block_time, revealTxids: [reveal.txid, second.txid] });
+  const saved = JSON.parse(JSON.stringify(compactHistory({ ...emptyHistory(), transactions: txs })));
+  expect(latestEeDa(saved.transactions, scripts, tip, true)).toEqual(latestEeDa(txs, scripts, tip, true));
   second.status.confirmed = false;
   expect(latestEeDa(txs, scripts, tip, true)).toMatchObject({ latest: null, pendingPublications: 1 });
   second.status.confirmed = true;

@@ -2,6 +2,7 @@ import { z } from 'zod';
 const uint = z.number().int().nonnegative().safe();
 const positive = uint.positive();
 const hash = z.string().regex(/^[0-9a-f]{64}$/);
+const apiBaseUrl = z.url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash && !v.endsWith('/'); });
 const auth = z.discriminatedUnion('scheme', [
   z.object({ scheme: z.literal('none') }).strict(),
   z.object({ scheme: z.literal('bearer'), secret_env: z.string().regex(/^[A-Z][A-Z0-9_]*$/) }).strict(),
@@ -10,7 +11,7 @@ const auth = z.discriminatedUnion('scheme', [
 ]);
 export const providerSchema = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/), role: z.enum(['primary', 'failover']), tier: z.enum(['internal', 'public']),
-  base_url: z.url().refine(v => { const u = new URL(v); return u.protocol === 'https:' && !u.username && !u.password && !u.search && !u.hash && !v.endsWith('/'); }),
+  base_url: apiBaseUrl,
   auth, timeout_ms: positive, retries: uint.max(2), min_interval_ms: uint, max_tip_lag_blocks: uint,
 }).strict();
 export const chainSchema = z.object({
@@ -28,6 +29,8 @@ export const walletSchema = z.object({
 export const networkSchema = z.object({
   schema_version: z.literal(1), network: z.string().regex(/^[a-z0-9-]+$/), chain: chainSchema,
   checkpoint_reporting: z.object({ magic_hex: z.string().regex(/^[0-9a-f]{8}$/) }).strict().optional(),
+  // Omission preserves mainnet's existing source; other networks never inherit it.
+  fee_api_base_url: apiBaseUrl.nullable().optional(),
   wallets: z.array(walletSchema).min(1), providers: z.array(providerSchema).min(1),
   estimator: z.object({ window_days: positive, short_window_days: positive, min_sample: positive,
     min_sample_short: positive, min_intervals: positive, min_intervals_short: positive }).strict(),
@@ -46,8 +49,9 @@ export const networkSchema = z.object({
   if (!(c.deadline_margin_s < c.max_duration_s && c.max_duration_s < c.lease_ttl_s && c.lease_ttl_s < c.interval_s)) issue('E_TIMING');
   const e = v.estimator;
   if (e.short_window_days >= e.window_days || e.window_days > v.retention.history_days || e.min_intervals_short > e.min_intervals) issue('E_WINDOWS');
-  if (v.network === 'mainnet' && (v.chain.bech32_hrp !== 'bc' || v.chain.bip44_coin_type !== 0 || v.chain.bip32_versions.public !== '0488b21e')) issue('E_NETWORK_COHERENCE');
-  if (v.network === 'signet' && (v.chain.bech32_hrp !== 'tb' || v.chain.bip44_coin_type !== 1 || v.chain.bip32_versions.public !== '043587cf' || v.chain.checkpoint.height === 0)) issue('E_NETWORK_COHERENCE');
+  if (v.network === 'mainnet' && (v.chain.bech32_hrp !== 'bc' || v.chain.bip44_coin_type !== 0 || v.chain.bip32_versions.public !== '0488b21e' || v.chain.bip32_versions.private !== '0488ade4')) issue('E_NETWORK_COHERENCE');
+  if (['signet', 'testnet', 'testnet4'].includes(v.network) && (v.chain.bech32_hrp !== 'tb' || v.chain.bip44_coin_type !== 1 || v.chain.bip32_versions.public !== '043587cf' || v.chain.bip32_versions.private !== '04358394')) issue('E_NETWORK_COHERENCE');
+  if (v.network === 'signet' && v.chain.checkpoint.height === 0) issue('E_NETWORK_COHERENCE');
 });
 export type NetworkConfig = z.infer<typeof networkSchema>;
 export type WalletConfig = z.infer<typeof walletSchema>;

@@ -10,8 +10,34 @@ import handler from '../api/consolidation.js';
 import statusHandler from '../api/status.js';
 import collectHandler from '../api/collect.js';
 import refreshHandler from '../api/refresh.js';
+import { validateConfig } from '../src/config/load.js';
+import { descriptorChecksum } from '../src/descriptor/checksum.js';
+import { parseWalletDescriptor } from '../src/descriptor/parse.js';
+import { deriveAddress } from '../src/derive/address.js';
 
 afterEach(() => vi.unstubAllEnvs());
+it('preserves a Sparrow-style intermediate-key origin and signs its exported PSBT from that key', () => {
+  const d = demoData(), input = structuredClone(d.config.config);
+  const anchor = HDKey.fromMasterSeed(new Uint8Array(32).fill(37), { public: 0x043587cf, private: 0x04358394 }).derive("m/84'/1'/0'");
+  const account = anchor.deriveChild(0x80000054).deriveChild(0x80000001).deriveChild(0x80000000);
+  expect(account.depth).toBe(6);
+  const body = `wpkh([${anchor.fingerprint.toString(16).padStart(8, '0')}/84h/1h/0h]${account.publicExtendedKey}/<0;1>/*)`;
+  const descriptor = `${body}#${descriptorChecksum(body)}`, parsed = parseWalletDescriptor(descriptor, input.chain);
+  input.wallets = [{ ...input.wallets[0]!, descriptor, vectors: ([0, 1] as const).map(chain => ({ chain, index: 0, address: deriveAddress(parsed, chain, 0, 'tb').address })) }];
+  const v = validateConfig(input, 'signet', false);
+  const inputs = d.wallets[0]!.utxos.map(utxo => ({ ...utxo, address: deriveAddress(parsed, utxo.chain, utxo.index, 'tb').address }));
+  const quote = buildConsolidation(v, 'ee', inputs, 1), tx = Transaction.fromPSBT(quote.psbt);
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const origin = tx.getInput(i).bip32Derivation![0]![1];
+    expect(origin.fingerprint).toBe(anchor.fingerprint);
+    expect(origin.path.slice(0, 3)).toEqual([0x80000054, 0x80000001, 0x80000000]);
+    const signingKey = origin.path.reduce((key, index) => key.deriveChild(index), anchor);
+    expect(tx.signIdx(signingKey.privateKey!, i)).toBe(true);
+  }
+  tx.finalize();
+  expect(tx.isFinal).toBe(true);
+  expect(tx.getOutputAddress(0, TEST_NETWORK)).toBe(quote.destination);
+});
 it('exports an unsigned PSBT with all dust inputs, one wallet output and correct signing paths', () => {
   const d = demoData(), wallet = d.wallets[0]!;
   const quote = buildConsolidation(d.config, wallet.wallet, wallet.utxos, 1.2);

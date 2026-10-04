@@ -1,12 +1,12 @@
 import type { Pool, PoolClient } from 'pg';
 import type { ValidatedConfig } from '../config/load.js';
 import type { AddressRecord, Snapshot, Utxo } from '../types.js';
-import { emptyHistory, type HistoryState } from '../extract/history.js';
+import { compactHistory, emptyHistory, type HistoryState } from '../extract/history.js';
 import { createHash } from 'node:crypto';
 import { feeContextSchema } from '../observations/schema.js';
 import type { FeeContext } from '../types.js';
 export interface Lease { network: string; runId: string; fence: number; slot: number }
-export interface WalletState { addresses: AddressRecord[]; history: HistoryState }
+export interface WalletState { addresses: AddressRecord[]; history: HistoryState; utxos?: Utxo[]; snapshot?: Snapshot }
 export class Store {
   constructor(readonly pool: Pool) {}
   async assertConfig(v: ValidatedConfig) {
@@ -63,7 +63,7 @@ export class Store {
       WHERE network=$1 AND holder=$2 AND fence=$3 AND expires_at>now()`, [lease.network, lease.runId, lease.fence, success, lease.slot]);
   }
   async state(network: string, wallet: string): Promise<WalletState> {
-    const r = await this.pool.query('SELECT addresses,history FROM wallet_state WHERE network=$1 AND wallet=$2', [network, wallet]);
+    const r = await this.pool.query('SELECT addresses,history,utxos,latest_snapshot AS snapshot FROM wallet_state WHERE network=$1 AND wallet=$2', [network, wallet]);
     return r.rows[0] ?? { addresses: [], history: emptyHistory() };
   }
   async providerError(network: string, provider: string, kind: string) {
@@ -76,7 +76,7 @@ export class Store {
         [lease.network, snapshot.wallet, lease.runId, snapshot.asOf, JSON.stringify(snapshot)]);
       await c.query(`INSERT INTO wallet_state(network,wallet,addresses,history,latest_snapshot,utxos) VALUES($1,$2,$3,$4,$5,$6)
         ON CONFLICT(network,wallet) DO UPDATE SET addresses=$3,history=$4,latest_snapshot=$5,utxos=$6`,
-      [lease.network, snapshot.wallet, JSON.stringify(addresses), JSON.stringify(history), JSON.stringify(snapshot), JSON.stringify(utxos)]);
+      [lease.network, snapshot.wallet, JSON.stringify(addresses), JSON.stringify(compactHistory(history)), JSON.stringify(snapshot), JSON.stringify(utxos)]);
       await c.query(`INSERT INTO daily_samples(network,wallet,day,snapshot,utxos) VALUES($1,$2,($3::timestamptz AT TIME ZONE 'UTC')::date,$4,$5) ON CONFLICT DO NOTHING`,
         [lease.network, snapshot.wallet, snapshot.asOf, JSON.stringify(snapshot), JSON.stringify(utxos)]);
     });

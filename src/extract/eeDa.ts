@@ -1,7 +1,7 @@
 import type { ChainTx } from '../chain/schemas.js';
 import type { EeDaContext, PostedEeDa, Tip } from '../types.js';
 import { commitOutputs, revealShaped, validFee } from './classify.js';
-import { envelopePayloads, hexBytes, push } from './envelope.js';
+import { firstEnvelopeEvidence, hexBytes, push } from './envelope.js';
 import { EPOCH_SOURCE_REF } from './epoch.js';
 
 function markerVersion(tx: ChainTx): number | null {
@@ -42,16 +42,17 @@ export function latestEeDa(transactions: Record<string, ChainTx>, scripts: Reado
     }
     if (malformed) { undecodedPublications++; continue; }
     if (pending) { pendingPublications++; continue; }
-    const chunks = reveals.map(tx => envelopePayloads(tx)?.[0]);
-    if (chunks.some(chunk => !chunk?.length)) { undecodedPublications++; continue; }
-    const payload = Buffer.concat(chunks as Buffer[]);
+    const chunks = reveals.map(firstEnvelopeEvidence);
+    if (chunks.some(chunk => !chunk?.payloadBytes)) { undecodedPublications++; continue; }
+    const payloadBytes = chunks.reduce((sum, chunk) => sum + chunk!.payloadBytes, 0);
+    const payload = Buffer.concat(chunks.map(chunk => Buffer.from(chunk!.prefixHex, 'hex'))).subarray(0, 48);
     // Six big-endian u64s: sequence, last EVM block, timestamp, base fee, gas used, gas limit.
     // Following bytes encode BatchStateDiff; this monitor reports header metadata only.
-    if (payload.length <= 48) { undecodedPublications++; continue; }
+    if (!Number.isSafeInteger(payloadBytes) || payloadBytes <= 48) { undecodedPublications++; continue; }
     const completion = [commit, ...reveals].reduce((last, tx) => tx.status.block_height! > last.status.block_height! ? tx : last);
     const posted: PostedEeDa = { updateSeqNo: payload.readBigUInt64BE(0).toString(), lastEvmBlock: payload.readBigUInt64BE(8).toString(),
       evmTimestamp: payload.readBigUInt64BE(16).toString(), version: 0, commitTxid: commit.txid, revealTxids: reveals.map(tx => tx.txid),
-      chunkCount: funding.length, payloadBytes: payload.length, blockHeight: completion.status.block_height!,
+      chunkCount: funding.length, payloadBytes, blockHeight: completion.status.block_height!,
       blockHash: completion.status.block_hash!, blockTime: completion.status.block_time! };
     if (!latest || BigInt(posted.updateSeqNo) > BigInt(latest.updateSeqNo) || (posted.updateSeqNo === latest.updateSeqNo &&
       (posted.blockHeight > latest.blockHeight || (posted.blockHeight === latest.blockHeight && posted.commitTxid > latest.commitTxid)))) latest = posted;

@@ -18,7 +18,7 @@ export function validFee(tx: ChainTx): boolean {
 }
 export function revealShaped(commit: ChainTx, index: number, reveal: ChainTx, scripts: ReadonlySet<string>): boolean {
   const input = reveal.vin[0];
-  return reveal.vin.length === 1 && input?.txid === commit.txid && input.vout === index && (input.witness?.length ?? 0) >= 3
+  return reveal.vin.length === 1 && input?.txid === commit.txid && input.vout === index && (input.witness?.length ?? input.witnessItemCount ?? 0) >= 3
     && input.prevout?.value === commit.vout[index]?.value && input.prevout?.scriptpubkey === commit.vout[index]?.scriptpubkey
     && reveal.vout.every(v => v.value === 0 || scripts.has(v.scriptpubkey));
 }

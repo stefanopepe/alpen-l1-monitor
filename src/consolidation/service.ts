@@ -1,6 +1,6 @@
 import { loadConfig, type ValidatedConfig } from '../config/load.js';
 import { Budget, Esplora } from '../chain/esplora.js';
-import { observeQuote } from '../chain/fees.js';
+import { observeQuote, feeApiBaseUrl } from '../chain/fees.js';
 import { deriveAddress } from '../derive/address.js';
 import type { ChainView } from '../chain/view.js';
 import type { Utxo } from '../types.js';
@@ -34,18 +34,18 @@ export async function consolidationQuote(network: string, walletId: string, requ
   if (process.env.STAGING_PREVIEW === 'demo') {
     const data = demoData(), wallet = data.wallets.find(w => w.wallet === walletId);
     if (!wallet) throw new Error('E_WALLET');
-    return { ...buildConsolidation(data.config, walletId, wallet.utxos, requestedFeeRate ?? 1), recommendedFeeRate: 1, wallet: walletId, inventoryAsOf: data.asOf,
+    return { ...buildConsolidation(data.config, walletId, wallet.utxos, requestedFeeRate ?? 1), network: data.config.config.network, recommendedFeeRate: 1, wallet: walletId, inventoryAsOf: data.asOf,
       checkedAt: data.asOf, feeObservedAt: data.asOf, feeSource: 'Example fee', provider: 'sample', sample: true };
   }
-  if (network !== 'mainnet') throw new Error('E_NETWORK');
   const v = loadConfig(network, false);
   if (!v.wallets.has(walletId)) throw new Error('E_WALLET');
   const inventory = await readInventory(network, walletId);
   const inputs = candidateInputs(v, inventory);
   if (!inputs.length) throw new Error('E_NO_OUTPUTS');
-  const fee = await observeQuote();
+  const feeBase = feeApiBaseUrl(v.config);
+  const fee = await observeQuote(undefined, undefined, feeBase);
   if (fee.status !== 'available' || !fee.rates) throw new Error('E_FEES');
-  const recommendedFeeRate = Math.ceil(Math.max(fee.rates.economyFee, fee.rates.minimumFee) * 10) / 10;
+  const recommendedFeeRate = Math.ceil(Math.max(0.1, fee.rates.economyFee, fee.rates.minimumFee) * 10) / 10;
   const feeRate = requestedFeeRate ?? recommendedFeeRate;
   const deadline = Date.now() + 22000;
   for (const provider of v.config.providers.filter(p => p.auth.scheme === 'none' || !!process.env[p.auth.secret_env])) {
@@ -57,8 +57,8 @@ export async function consolidationQuote(network: string, walletId: string, requ
       const available = await verifyInputs(view, inputs);
       if (await view.tipHash() !== tip.hash) continue;
       const built = buildConsolidation(v, walletId, available, feeRate);
-      return { ...built, recommendedFeeRate, wallet: walletId, inventoryAsOf: inventory.snapshot.asOf, checkedAt: new Date().toISOString(),
-        feeObservedAt: fee.observedAt, feeSource: 'mempool.space · economy', provider: provider.name, sample: false };
+      return { ...built, network, recommendedFeeRate, wallet: walletId, inventoryAsOf: inventory.snapshot.asOf, checkedAt: new Date().toISOString(),
+        feeObservedAt: fee.observedAt, feeSource: `${new URL(feeBase!).hostname} · ${network} economy`, provider: provider.name, sample: false };
     } catch (error) {
       if (error instanceof Error && ['E_NO_OUTPUTS', 'E_UNECONOMIC', 'E_INPUT_VALUE', 'E_INPUT_OWNERSHIP', 'E_INPUT'].includes(error.message)) throw error;
     }

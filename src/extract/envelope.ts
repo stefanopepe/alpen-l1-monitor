@@ -1,4 +1,18 @@
-import type { ChainTx } from '../chain/schemas.js';
+import type { ChainTx, EnvelopeEvidence } from '../chain/schemas.js';
+
+// Enough for CodecSsz's four-byte length and checkpoint/sidecar header, or EE's
+// six u64 fields. Keep the validated full length, never fabricate a raw witness.
+const PREFIX_BYTES = 68;
+export function firstEnvelopeEvidence(tx: ChainTx): EnvelopeEvidence | null {
+  if (tx.vin[0]?.witness) {
+    const payload = envelopePayloads(tx)?.[0];
+    return payload ? { version: 1, payloadBytes: payload.length, prefixHex: payload.subarray(0, PREFIX_BYTES).toString('hex') } : null;
+  }
+  const cached = tx.envelopeEvidence;
+  if (!cached || cached.version !== 1 || !Number.isSafeInteger(cached.payloadBytes) || cached.payloadBytes < 0 ||
+    !/^(?:[0-9a-f]{2})*$/.test(cached.prefixHex) || cached.prefixHex.length !== Math.min(cached.payloadBytes, PREFIX_BYTES) * 2) return null;
+  return cached;
+}
 
 export const hexBytes = (hex: string): Buffer => {
   if (!/^(?:[0-9a-f]{2})+$/i.test(hex)) throw new Error('E_EPOCH_HEX');

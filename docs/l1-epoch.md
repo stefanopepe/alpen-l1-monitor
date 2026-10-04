@@ -15,6 +15,8 @@ The decoder is pinned independently of the existing runway-model assumption to [
 
 The mainnet magic defaults to `STRA` (`53545241`), observed in the existing provenance-stamped mainnet OL fixture. Other deployments can explicitly set `checkpoint_reporting: { "magic_hex": "..." }` in network configuration; they have no inferred default. The release defines configurable magic, not a universal network identifier. The chain checkpoint and watched wallet still establish the monitored network and attribution.
 
+The public Signet profile explicitly sets `ALPN` (`414c504e`). Its October 2 read-only capture supplies `test/fixtures/signet/ol-epoch-v032.json`: epoch **185**, consumed L1 height **324650**, OL slot **1850**, posted in block **324662**. The captured framing is compatible with the decoder; it does not establish the deployed sequencer version. Mainnet's default marker does not decode this Signet fixture.
+
 The stored fixture decodes to epoch **103**, consumed L1 height **969386**, OL slot **1030**, posted in Bitcoin block **969392** by reveal `caddf4da10c387cd0b9b0a8ef551a64a9fc5286c6a5a7979cd46fd12bec13630`. This is a historical test vector, not a hardcoded current epoch.
 
 ## Coverage and interpretation
@@ -24,6 +26,8 @@ This monitor decodes the posted claim and checks its envelope framing, top-level
 Only reveals linked to commits funded by discovered wallet scripts qualify. Epoch selection uses the epoch number, with deterministic block-height/transaction-ID tie breaking for repeat postings, rather than block timestamps. It shares the existing scan's history retention, gap-scan and finality assumptions. Partial history/discovery and tagged postings that cannot be decoded are visible warnings; a more recent epoch may be missing. No decoded checkpoint means unavailable, not epoch zero. Genuine epoch zero is preserved.
 
 Snapshots store optional `epochContext` alongside existing data, so no database migration is needed. Older snapshots remain readable and report the field as not collected. New collection fills it; existing replay results require `pnpm replay run` (or `refresh`) to compute it before HTML regeneration. `replay report` alone cannot manufacture missing historical evidence. Report/API reads remain offline and never contact a provider.
+
+The merged Signet collector compacts stored witness data. Version 2.3 preserves the first envelope's validated length and at most 68 payload bytes in a versioned, local-only cache before removing the witness. This retains checkpoint offsets and EE metadata, including headers split across reveals, while discarding proof/state-diff payloads. Provider responses cannot supply the cache, and freshly fetched witness data always takes precedence. Old compacted records without these headers stay explicitly undecodable until refreshed; raw offline archives remain unchanged.
 
 Prometheus adds `bridge_wallet_posted_epoch_available`, `bridge_wallet_posted_epoch_coverage_complete`, `bridge_wallet_latest_posted_epoch`, and `bridge_wallet_latest_posted_epoch_block_height` for OL. Consumers should also use the existing snapshot freshness metric. The epoch value is emitted only when an observation exists; coverage is false when history/discovery is partial or any tagged posting cannot be decoded.
 

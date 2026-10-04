@@ -2,19 +2,25 @@ import { feeRatesSchema, completedBlockSchema } from '../observations/schema.js'
 import type { FeeContext } from '../types.js';
 import { z } from 'zod';
 import { projectedBlockSchema, type FeePressure } from '../fees/schema.js';
+import type { NetworkConfig } from '../config/schema.js';
+const mainnetFeeApi = 'https://mempool.space/api';
+export function feeApiBaseUrl(config: Pick<NetworkConfig, 'network' | 'fee_api_base_url'>): string | null {
+  return config.fee_api_base_url === undefined ? config.network === 'mainnet' ? mainnetFeeApi : null : config.fee_api_base_url;
+}
 // Informational only. A fee quote can never prevent collecting wallet inventory.
-export async function observeFees(fetcher: typeof fetch = fetch, now = () => new Date()): Promise<FeeContext> {
+export async function observeFees(fetcher: typeof fetch = fetch, now = () => new Date(), baseUrl: string | null = mainnetFeeApi): Promise<FeeContext> {
   // Independent bounded requests: projection failure must not discard a fee quote.
-  const [quote, pressure, completed] = await Promise.all([observeQuote(fetcher, now), observePressure(fetcher, now), observeCompletedFees(fetcher, now)]);
+  const [quote, pressure, completed] = await Promise.all([observeQuote(fetcher, now, baseUrl), observePressure(fetcher, now, baseUrl), observeCompletedFees(fetcher, now, baseUrl)]);
   if (pressure.status === 'available' && completed.status === 'available' && completed.blocks?.length) {
     pressure.blockFullness = { observedAt: completed.observedAt, ratio: completed.blocks.reduce((s, b) => s + b.weight / 4000000, 0) / completed.blocks.length };
   }
   return { ...quote, pressure, completed };
 }
 
-export async function observeCompletedFees(fetcher: typeof fetch = fetch, now = () => new Date()): Promise<NonNullable<FeeContext['completed']>> {
+export async function observeCompletedFees(fetcher: typeof fetch = fetch, now = () => new Date(), baseUrl: string | null = mainnetFeeApi): Promise<NonNullable<FeeContext['completed']>> {
   try {
-    const response = await fetcher('https://mempool.space/api/v1/blocks', {
+    if (!baseUrl) throw new Error('E_COMPLETED_SOURCE_UNAVAILABLE');
+    const response = await fetcher(`${baseUrl}/v1/blocks`, {
       redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) throw new Error(response.status === 429 ? 'E_COMPLETED_RATE_LIMITED' : 'E_COMPLETED_HTTP');
@@ -26,9 +32,10 @@ export async function observeCompletedFees(fetcher: typeof fetch = fetch, now = 
     return { observedAt: now().toISOString(), status: 'unavailable', blocks: null, error };
   }
 }
-export async function observeQuote(fetcher: typeof fetch = fetch, now = () => new Date()): Promise<FeeContext> {
+export async function observeQuote(fetcher: typeof fetch = fetch, now = () => new Date(), baseUrl: string | null = mainnetFeeApi): Promise<FeeContext> {
   try {
-    const response = await fetcher('https://mempool.space/api/v1/fees/recommended', {
+    if (!baseUrl) throw new Error('E_FEE_SOURCE_UNAVAILABLE');
+    const response = await fetcher(`${baseUrl}/v1/fees/recommended`, {
       redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) throw new Error(response.status === 429 ? 'E_FEE_RATE_LIMITED' : 'E_FEE_HTTP');
@@ -41,9 +48,10 @@ export async function observeQuote(fetcher: typeof fetch = fetch, now = () => ne
   }
 }
 
-export async function observePressure(fetcher: typeof fetch = fetch, now = () => new Date()): Promise<FeePressure> {
+export async function observePressure(fetcher: typeof fetch = fetch, now = () => new Date(), baseUrl: string | null = mainnetFeeApi): Promise<FeePressure> {
   try {
-    const response = await fetcher('https://mempool.space/api/v1/fees/mempool-blocks', {
+    if (!baseUrl) throw new Error('E_PRESSURE_SOURCE_UNAVAILABLE');
+    const response = await fetcher(`${baseUrl}/v1/fees/mempool-blocks`, {
       redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) throw new Error(response.status === 429 ? 'E_PRESSURE_RATE_LIMITED' : 'E_PRESSURE_HTTP');

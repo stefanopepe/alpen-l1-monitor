@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.0 — Signet support and L1 posting progress (2026-10-04)
+
+- Combine the mainnet monitor and isolated public Signet deployment, with network-labelled pages, Signet fee sources, verified Sparrow descriptors and local wallet export/import tools.
+- Report the most recent observed OL checkpoint epoch and fully posted EE DA update, including Bitcoin transaction IDs, posting blocks and covered OL/EVM progress. Keep their independent sequence numbers and coverage limits visible in live reads and historical replay.
+- Decode the Alpen v0.3.2 posting formats; configure Signet's observed `ALPN` checkpoint marker separately from mainnet's `STRA`. Publication does not establish proof validity or protocol acceptance.
+- Preserve bounded, validated posting headers through compact database history so EE and OL progress survives subsequent collections without retaining full witness payloads. Older compacted records remain explicitly undecodable until refreshed.
+- Retain Signet's guarded exact-inventory cache for provider UTXO limits. Network and provider changes, new address activity and reorgs fail closed. No database migration is required.
+
 ## 2.2.0 — stranded output consolidation (2026-10-02)
 
 - Link **Consolidate stranded outputs** from Operator controls at the bottom of the app home to a dedicated consolidation page.

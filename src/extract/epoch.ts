@@ -1,4 +1,4 @@
-import { envelopePayloads, hexBytes, push } from './envelope.js';
+import { firstEnvelopeEvidence, hexBytes, push } from './envelope.js';
 import type { ChainTx } from '../chain/schemas.js';
 import type { EpochContext, PostedEpoch, Tip } from '../types.js';
 import { commitOutputs, revealShaped, validFee } from './classify.js';
@@ -17,22 +17,21 @@ export function isCheckpointTag(tx: ChainTx, magicHex: string): boolean {
 export function decodeCheckpoint(tx: ChainTx, magicHex = '53545241'): Omit<PostedEpoch, 'commitTxid' | 'txid' | 'blockHeight' | 'blockHash' | 'blockTime'> | null {
   try {
     if (!isCheckpointTag(tx, magicHex)) return null;
-    const payloads = envelopePayloads(tx);
-    if (!payloads) return null;
+    const evidence = firstEnvelopeEvidence(tx);
+    if (!evidence?.payloadBytes) return null;
     // The upstream extractor decodes the first envelope as CodecSsz<CheckpointPayload>.
-    const raw = payloads[0];
-    if (!raw?.length) return null;
+    const raw = Buffer.from(evidence.prefixHex, 'hex');
     const width = raw[0]! < 128 ? 1 : raw[0]! < 192 ? 2 : 4;
     const length = raw.readUIntBE(0, width) & (width === 1 ? 0x7f : width === 2 ? 0x3fff : 0x3fffffff);
-    if (raw.length !== width + length) return null;
+    if (evidence.payloadBytes !== width + length) return null;
     const ssz = raw.subarray(width);
     // CheckpointTip: epoch u32, consumed L1 height u32, OL slot u64, OL block ID bytes32.
     // Followed by two SSZ offsets (sidecar and proof). See docs/l1-epoch.md.
-    if (ssz.length < 168 || ssz.readUInt32LE(48) !== 56) return null;
+    if (length < 168 || ssz.readUInt32LE(48) !== 56) return null;
     const proofOffset = ssz.readUInt32LE(52);
-    if (proofOffset < 168 || proofOffset > ssz.length || ssz.length - proofOffset > 4096) return null;
-    const sidecar = ssz.subarray(56, proofOffset), logsOffset = sidecar.readUInt32LE(4);
-    if (sidecar.readUInt32LE(0) !== 112 || logsOffset < 112 || logsOffset > sidecar.length || logsOffset - 112 > 262144) return null;
+    if (proofOffset < 168 || proofOffset > length || length - proofOffset > 4096) return null;
+    const logsOffset = ssz.readUInt32LE(60);
+    if (ssz.readUInt32LE(56) !== 112 || logsOffset < 112 || logsOffset > proofOffset - 56 || logsOffset - 112 > 262144) return null;
     return { epoch: ssz.readUInt32LE(0), l1Height: ssz.readUInt32LE(4),
       // Keep the u64 exact in JSON, including values beyond Number.MAX_SAFE_INTEGER.
       l2Slot: ssz.readBigUInt64LE(8).toString(), l2BlockId: ssz.subarray(16, 48).toString('hex') };
