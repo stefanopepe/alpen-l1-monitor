@@ -8,7 +8,7 @@ import { parseInt8 } from '../src/db/pool.js';
 import { readModel } from '../src/read/model.js';
 import { computeWalletSnapshot } from '../src/pipeline/snapshot.js';
 import { emptyHistory } from '../src/extract/history.js';
-import { config, hash, utxo } from './helpers.js';
+import { config, hash, pair, utxo } from './helpers.js';
 const embedded = process.env.TEST_DATABASE_URL ? null : new PGlite();
 const real = process.env.TEST_DATABASE_URL ? new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }) : null;
 const query = async (sql: string, args?: unknown[]) => {
@@ -66,7 +66,15 @@ it('atomically persists an exact partition and a daily sample, and rejects bad i
   const runId = randomUUID(); await store.beginRun('mainnet', runId);
   const lease = (await store.acquire('mainnet', runId, 830, 900, true))!;
   const s = snapshot();
-  await store.save(lease, s, [], emptyHistory(), [utxo(1000), utxo(546)]);
+  const history = emptyHistory(), { commit, reveal } = pair();
+  history.transactions = { [commit.txid]: commit, [reveal.txid]: reveal };
+  history.reveals[commit.txid] = [reveal];
+  await store.save(lease, s, [], history, [utxo(1000), utxo(546)]);
+  const saved = await store.state('mainnet', 'ee');
+  expect(saved.snapshot?.tip).toEqual(s.tip);
+  expect(saved.utxos).toHaveLength(2);
+  expect(saved.history.transactions[reveal.txid]?.vin[0]).toMatchObject({ witnessItemCount: 3 });
+  expect(saved.history.transactions[reveal.txid]?.vin[0]?.witness).toBeUndefined();
   const model = await readModel(pool, 'mainnet', new Date());
   expect(model.wallets.find(w => w.wallet === 'ee')?.snapshot?.composition.spendableSats).toBe(1000);
   expect(model.wallets.find(w => w.wallet === 'ol')).toMatchObject({ snapshot: null, stale: true });

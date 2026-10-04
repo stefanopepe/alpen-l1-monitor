@@ -10,6 +10,9 @@ export default { async fetch(request: Request) {
   if (!['text', 'json'].includes(format)) return respond({ error: 'invalid_format' }, 400);
   try {
     const model = process.env.STAGING_PREVIEW === 'demo' ? demoStatus(new Date()) : process.env.STAGING_PREVIEW === '1' ? stagingStatus(networkName(), new Date()) : await readModel(database('read'), networkName(), new Date());
-    return respond(format === 'text' ? renderText(model) : model, 200, format === 'text' ? 'text/plain; charset=utf-8' : 'application/json');
+    const response = respond(format === 'text' ? renderText(model) : model, 200, format === 'text' ? 'text/plain; charset=utf-8' : 'application/json');
+    response.headers.set('x-monitor-network', model.network);
+    if (model.preview) response.headers.set('x-monitor-preview', '1');
+    return response;
   } catch { return respond({ error: 'storage_unavailable' }, 503); }
 } };

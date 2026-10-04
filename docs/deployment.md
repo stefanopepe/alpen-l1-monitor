@@ -25,7 +25,7 @@ Apply `ops/roles.sql` as the migrator after migrations. Revoke `CONNECT` on the 
 
 ## 2. Vercel project and secrets
 
-The existing project is **alpen-labs / ee-ol-wallet-monitor**. Manage it through the Vercel dashboard; CLI sign-in is optional. For CLI deployment, authenticate (`pnpm exec vercel login`) and link this directory to that exact project (`pnpm exec vercel link`). Use framework **Other**, Node **24.x**, Fluid compute enabled, region **iad1**. The repository sets output directory `public`, 800-second collect/refresh limits and a 15-minute cron. Hobby cannot meet these settings; use the existing paid team. No team plan purchase is automated.
+The existing project is **alpen-labs / ee-ol-wallet-monitor**. Manage it through the Vercel dashboard; CLI sign-in is optional. For CLI deployment, authenticate (`pnpm exec vercel login`) and link this directory to that exact project (`pnpm exec vercel link`). Use framework **Other**, Node **24.x**, Fluid compute enabled, region **iad1**. The repository builds network-labelled pages from `public` into output directory `dist`, with 800-second collect/refresh limits and a 15-minute cron. Remove any Vercel dashboard output-directory override still set to `public`. Hobby cannot meet these settings; use the existing paid team. No team plan purchase is automated.
 
 Add these **Production** environment variables through the Vercel dashboard or its interactive `env add` prompt:
 
@@ -109,11 +109,42 @@ Run these from the tested release commit, with private local credentials availab
 
 Every environment variable change requires a new deployment. Never log authorization headers, request URLs containing credentials, database errors or raw provider error bodies.
 
-## Config-only signet
+## Separate testnet deployment
+
+The testnet target in the brief is **Signet**. Both pages use the same implementation as mainnet. `NETWORK=signet` builds a purple theme and a persistent **Testnet · Signet / Test coins only** banner, including when the status API is unavailable. Home links stay on the deployment's own origin. Quotes and PSBT download filenames identify their network. The collector and consolidation endpoint use that profile's fee API; they never fall back to mainnet fees when a testnet fee source is absent.
+
+`config/networks/signet.json` contains the operator-supplied Sparrow EE/OL descriptors and a nonzero public Signet checkpoint cross-checked through Alpen and mempool.space. Receive/change vectors were observed in confirmed outputs through both providers. The deployed sequencer build remains explicitly unconfirmed. See [Signet verification](signet-verification.md) for evidence and the EE indexer limit.
+
+To inspect the finished interface with the existing synthetic wallets, without a database or provider requests:
+
+```sh
+NETWORK=signet STAGING_PREVIEW=demo pnpm dev
+# Or build the same static pages used on Vercel:
+NETWORK=signet STAGING_PREVIEW=demo pnpm build
+```
+
+Demo data is visibly labelled and collection is disabled. This is a UI preview, not a live testnet release.
 
 Do not copy the mainnet xpubs into a signet profile. Obtain the actual EE/OL signet descriptors with BIP84 coin type 1 and tpub versions, plus at least one receive and one change address per wallet from an independent source. Obtain the correct Esplora base URL and a **nonzero height/hash checkpoint** for the specific public or custom signet. All signets share genesis, so genesis alone is insufficient.
 
-Create `config/networks/signet.json` using the mainnet schema with `network: signet`, HRP `tb`, public/private BIP32 versions `043587cf`/`04358394`, coin type 1 and the supplied data. Add the signet build assumption to `config/upstream-manifest.json` (identical to the profile’s `upstream` object). Run `NETWORK=signet pnpm validate-config`. Create a separate Neon/Vercel project and run migrations with `--init-network signet`. No derivation or model code change is needed. Real signet deployment remains blocked on these external inputs.
+Create `config/networks/signet.json` from the example with `network: signet`, HRP `tb`, public/private BIP32 versions `043587cf`/`04358394`, coin type 1 and the supplied data. Add the Signet build assumption to `config/upstream-manifest.json` (identical to the profile's `upstream` object). For public Signet, the example uses `https://mempool.space/signet/api` for Esplora and `fee_api_base_url`. For a custom Signet, replace both sources with the correct network's endpoints; set `fee_api_base_url: null` if no mempool-compatible fee service exists. Collection continues with unavailable fee context in that case; live consolidation requires a fee quote. Mainnet's existing implicit fee source is preserved. Run `NETWORK=signet pnpm check`.
+
+The separate Vercel project is **alpen-labs / ee-ol-wallet-monitor-signet**, with a dedicated Neon resource of the same name provisioned through Vercel's existing integration in `iad1` on the free plan. Neon provisioned Postgres 18; migrations and pooled TLS role checks passed on that actual version. Production uses `NETWORK=signet`, its own collector/read-only URLs and a fresh cron secret. `STAGING_PREVIEW` is unset. The mainnet project and database remain separate.
+
+Neon-managed owner credentials were retrieved privately for initialization. The automatic integration connection was then removed so those owner credentials are not part of the app's runtime environment; the Neon resource still exists and is managed from the team's Vercel Storage area. `DATABASE_URL` and `DATABASE_URL_METRICS` use the ordinary `monitor_app` and `monitor_read` roles. The direct owner URL stays only in the ignored, mode-600 `.env.testnet` file for migrations.
+
+For local live testnet work, use a separate ignored environment file so the mainnet `.env` is not loaded:
+
+```sh
+cp -n .env.testnet.example .env.testnet
+# Fill testnet-only connection strings and tokens privately, then:
+node --env-file=.env.testnet --import tsx scripts/migrate.ts --init-network signet --apply-roles
+node --env-file=.env.testnet --import tsx scripts/dev.ts
+```
+
+Create GitHub environment **production-signet**, containing its own `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `VERCEL_TOKEN` and `MIGRATION_DATABASE_URL` with the same variable/secret types as `production-mainnet`. Never reuse the mainnet project ID or database. Manually dispatch **Deploy monitor release** with the matching release tag and `network: signet`. Tag pushes still deploy mainnet only; Signet releases are explicit and have a separate concurrency group. The workflow passes the chosen `NETWORK` to both the build and runtime. Confirm the project uses the repository's `dist` output directory.
+
+Before release, repeat the endpoint, descriptor/address, PSBT and cron checks on the testnet URL. Verify the banner says Testnet, JSON and metrics say `signet`, destination addresses begin `tb1`, downloads contain `-signet-`, and the main-app link stays on the testnet domain. Record the deployment and collection results in [Signet verification](signet-verification.md).
 
 ## Operations and rollback
 

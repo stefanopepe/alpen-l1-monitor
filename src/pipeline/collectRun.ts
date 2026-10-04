@@ -4,7 +4,7 @@ import { database } from '../db/pool.js';
 import { Store } from '../db/store.js';
 import { scanWallet } from './walletRun.js';
 import { safeError } from '../chain/errors.js';
-import { observeFees } from '../chain/fees.js';
+import { observeFees, feeApiBaseUrl } from '../chain/fees.js';
 import type { Snapshot } from '../types.js';
 export async function runCollect(force = false) {
   const started = Date.now();
@@ -22,7 +22,7 @@ export async function runCollect(force = false) {
   const results: { wallet: string; status: string; asOf?: string; provider?: string; error?: string; runwayAvailable?: boolean;
     forecast?: Pick<Snapshot, 'tip' | 'composition' | 'naiveRunway' | 'monitorVersion' | 'configSha256'> }[] = [];
   let success = false, provider = 0;
-  const feeContext = await observeFees();
+  const feeContext = await observeFees(undefined, undefined, feeApiBaseUrl(cfg));
   feeContext.persistence = await store.preserveFees(cfg.network, runId, feeContext);
   try {
     const share = (cfg.collection.max_duration_s - cfg.collection.deadline_margin_s) * 1000 / cfg.wallets.length;

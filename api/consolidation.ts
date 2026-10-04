@@ -3,7 +3,7 @@ import { consolidationQuote } from '../src/consolidation/service.js';
 import { validFeeRate } from '../src/consolidation/transaction.js';
 
 const messages: Record<string, string> = {
-  E_WALLET: 'Wallet not found.', E_NETWORK: 'Consolidation is available on mainnet only.',
+  E_WALLET: 'Wallet not found.',
   E_NO_OUTPUTS: 'No confirmed stranded outputs are available to consolidate.',
   E_UNECONOMIC: 'The fee is too high to recover a spendable amount. Check again when fees are lower.',
   E_TOO_MANY_OUTPUTS: 'This wallet needs more than one consolidation transaction.',
@@ -24,7 +24,7 @@ export default { async fetch(request: Request) {
     if (format === 'psbt') {
       if (result.quoteId !== quote) return respond({ error: 'quote_changed', message: 'The outputs or fee have changed. Reload the estimate before downloading.' }, 409);
       return new Response(Buffer.from(result.psbt), { headers: {
-        'content-type': 'application/octet-stream', 'content-disposition': `attachment; filename="${wallet}-${result.sample ? 'sample-' : ''}consolidation.psbt"`,
+        'content-type': 'application/octet-stream', 'content-disposition': `attachment; filename="${wallet}-${result.network}-${result.sample ? 'sample-' : ''}consolidation.psbt"`,
         'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff',
       } });
     }

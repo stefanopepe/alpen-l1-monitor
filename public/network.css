@@ -1,0 +1,10 @@
+:root{--network-accent:#173c55;--network-soft:#eaf0f5;--network-line:#c5d3df}
+.network-banner{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin:0 0 1.4rem;padding:.65rem 1rem;border:1px solid var(--network-line);border-left:4px solid var(--network-accent);border-radius:7px;background:var(--network-soft);color:var(--network-accent);font-size:13px;line-height:1.5}
+.network-banner strong{font-weight:650;letter-spacing:.025em}
+html[data-theme=testnet]{--network-accent:#6d35b1;--network-soft:#f0e7fc;--network-line:#d5bdeb;--ink:#322340;--muted:#6f5c7d;--line:#e1d5ec;--soft:#f5effb;--green:#6d35b1}
+html[data-theme=testnet] body{background:#f8f4fc;color:var(--ink)}
+html[data-theme=testnet] a{color:var(--network-accent)}
+html[data-theme=testnet] button.primary,html[data-theme=testnet] .monitor-action,html[data-theme=testnet] .tabs button[aria-pressed=true]{background:var(--network-accent);border-color:var(--network-accent);color:white}
+html[data-theme=testnet] small{color:var(--muted)}
+html[data-theme=testnet] pre{border-color:var(--line)}
+html[data-theme=testnet] button:focus-visible,html[data-theme=testnet] input:focus-visible,html[data-theme=testnet] summary:focus-visible,html[data-theme=testnet] a:focus-visible{outline:3px solid #a877d9;outline-offset:3px}

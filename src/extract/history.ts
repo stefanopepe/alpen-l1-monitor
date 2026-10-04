@@ -9,6 +9,15 @@ export interface HistoryState {
   addresses: Record<string, AddressHistory>; transactions: Record<string, ChainTx>; reveals: Record<string, ChainTx[]>;
 }
 export const emptyHistory = (): HistoryState => ({ addresses: {}, transactions: {}, reveals: {} });
+export function compactHistory(state: HistoryState): HistoryState {
+  // Classification needs the number of witness items, not their payload bytes.
+  // Retain an explicit count rather than pretending trimmed bytes are a raw witness.
+  const compact = (tx: ChainTx): ChainTx => ({ ...tx, vin: tx.vin.map(({ witness, ...input }) =>
+    witness ? { ...input, witnessItemCount: witness.length } : input) });
+  return { addresses: state.addresses,
+    transactions: Object.fromEntries(Object.entries(state.transactions).map(([id, tx]) => [id, compact(tx)])),
+    reveals: Object.fromEntries(Object.entries(state.reveals).map(([id, txs]) => [id, txs.map(compact)])) };
+}
 export async function sampleHistory(view: ChainView, addresses: readonly AddressRecord[], previous: HistoryState, cfg: NetworkConfig, tip: Tip, asOf: number, exhaustive = false) {
   const state = structuredClone(previous), horizon = asOf - cfg.estimator.window_days * 86400;
   const scripts = new Set(addresses.map(a => a.script));

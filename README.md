@@ -75,7 +75,23 @@ The [runway estimator improvement brief](docs/brief/runway-estimator-evolution.m
 
 Production follows release tags (`vMAJOR.MINOR.PATCH`), each matching `package.json`'s version. Pushing a tag runs validation, database migrations and deployment to the existing Vercel project. Pushing or merging `main` does not deploy. Complete the one-time [GitHub release setup](docs/deployment.md#3-release-tags-and-deployment) before pushing the first tag.
 
+The same monitor and consolidation pages support a separate public Signet deployment, with purple accents, a persistent **Testnet · Signet** banner and network-labelled PSBT downloads. The Signet profile uses the operator's Sparrow descriptors, externally observed receive/change vectors and the Alpen Signet indexer. Mainnet keeps its existing colors. Preview the interface with synthetic wallets using `NETWORK=signet STAGING_PREVIEW=demo pnpm dev`; for live local collection use the separate `.env.testnet` file. See [testnet setup](docs/deployment.md#separate-testnet-deployment) and [live verification and provider limits](docs/signet-verification.md).
+
 `pnpm check` runs strict type checking, config/vector validation, lint, import-boundary checks and focused tests. SQL tests run in embedded Postgres (PGlite) without credentials; CI also runs them against Postgres 17 through transaction-mode PgBouncer. `pnpm inspect --resume` performs a real read-only scan, preserving progress under gitignored `.local/inspection`; it never touches the database. `node --env-file-if-exists=.env --import tsx scripts/provider-conformance.ts` independently cross-checks `/utxo` totals against aggregate arithmetic offline, using the saved inspection address set. Aggregate arithmetic never enters the collector. `pnpm collect --force` uses the production collector and configured write database.
+
+For a local EE Signet history/inventory export that avoids the provider's `/utxo` cap:
+
+```sh
+node --import tsx scripts/export-wallet.ts --network signet --wallet ee --out .local/exports/signet-ee
+```
+
+This command contacts only the configured indexer, with a maximum of two requests per second and cached history pages for resume. It scans the configured receive/change range, reconstructs explicit outpoints from complete confirmed transaction history, and reconciles every address's funded/spent counts and sums. It saves JSON inventory and addresses, JSONL transactions and historical outputs, raw response evidence and a manifest locally. It neither invokes Vercel nor connects to a database. Mempool spends/outputs are excluded and must be checked before using the inventory to spend. This local export does not change the deployed collector.
+
+To verify eligible dust outputs again and export unsigned PSBT drafts locally, run `node --import tsx scripts/export-local-psbt.ts .local/exports/signet-ee`. It checks the export digest, rechecks live inputs directly, obtains the configured network's current economy fee, and splits large inventories into at most 1,000 inputs per file. Working-capital outputs are excluded. Review the drafts in the signing wallet; the command never signs or broadcasts.
+
+To seed the matching database from the local export, use `NETWORK=signet node --import tsx scripts/import-wallet-export.ts .local/exports/signet-ee --prepare`, then `node --env-file=.env.testnet --import tsx scripts/import-wallet-export.ts .local/exports/signet-ee --write`. The write command verifies the network/wallet identity, acquires the collector lease, refreshes inventory and history heads locally, and atomically stores that wallet's current state. It preserves a local pre-import snapshot and records the source digest in the run. An active collector causes it to stop without replacing state; retry after the collector finishes.
+
+Database history stores witness item counts used for classification, with full witness bytes retained in local exports. If a provider caps an address's UTXO list, collection can reuse that provider's previously verified inventory only after unchanged confirmed counts, empty mempool counts, and a canonical previous block establish that the address has had no activity. New activity or a changed block fails closed and still requires a complete inventory refresh.
 
 [Deployment runbook](docs/deployment.md) covers Vercel, Neon, secrets, migrations, role grants, smoke checks and cron verification. [Release verification](docs/release-verification.md) records what was actually tested. [Open questions](docs/open-questions.md) separates current setup blockers from later plan gates.
 

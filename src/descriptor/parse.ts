@@ -28,7 +28,10 @@ export function parseWalletDescriptor(desc: string, net: ChainParams): ParsedWal
   if (version !== Number.parseInt(net.bip32_versions.public, 16)) return err('E_NETWORK_VERSION');
   if (Number(purpose) !== 84) return err('E_ORIGIN_PURPOSE');
   if (Number(coin) !== net.bip44_coin_type) return err('E_NETWORK_COINTYPE');
-  if (bytes[4] !== 3) return err('E_DEPTH');
+  // BIP380 origins can start at an intermediate key (as in Sparrow exports).
+  // The three supplied origin steps need not be the key's absolute BIP32 depth.
+  // Keep room for the two unhardened receive/change and address-index children.
+  if (bytes[4]! < 3 || bytes[4]! > 253) return err('E_DEPTH');
   if (Number(acct) > 0x7fffffff || view.getUint32(9) !== 0x80000000 + Number(acct)) return err('E_CHILD_NUMBER');
   let account: HDKey;
   try { account = HDKey.fromExtendedKey(key, { public: version, private: Number.parseInt(net.bip32_versions.private, 16) }); }

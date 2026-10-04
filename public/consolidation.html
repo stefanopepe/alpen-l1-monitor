@@ -13,7 +13,9 @@ button.primary{background:var(--green);color:white;border-color:var(--green)}sma
 .panel{border:1px solid var(--line);border-radius:12px;background:white;overflow:hidden;margin-top:1.5rem}.panel-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;padding:1rem 1.4rem;border-bottom:1px solid var(--line);font-size:13px}.wallet-label{font-weight:600}.switch{display:flex;align-items:center;gap:.6rem;color:var(--muted);min-height:24px}.switch input{accent-color:var(--green);width:32px;height:18px;margin:0}.panel-body{padding:1.5rem 1.4rem}.amount{font-size:16px;font-weight:500;font-variant-numeric:tabular-nums}.copy{font-size:14px;color:var(--muted);max-width:32rem}.fees{padding:.75rem 1rem;background:var(--soft);border-radius:8px;margin:1.3rem 0;max-width:35rem}.fee-row{display:flex;justify-content:space-between;gap:1rem;padding:.4rem 0;font-size:14px}.fee-row dt{color:var(--muted)}.fee-row dd{margin:0;font-weight:500;text-align:right;font-variant-numeric:tabular-nums}.actions{display:flex;flex-wrap:wrap;gap:.6rem}.help{font-size:12px;color:var(--muted);margin:.65rem 0 0}.message{font-size:14px;margin:1rem 0 0}.error{color:#9d3327}.destination{overflow-wrap:anywhere;font-size:12px}.details{margin-top:1.5rem}summary{cursor:pointer}pre{white-space:pre-wrap;padding:1rem;background:white;border:1px solid var(--line);font-size:12px;line-height:1.65}input[type=password]{width:min(65%,24rem);padding:.65rem;border:1px solid var(--line);border-radius:7px}.operator-label{display:block;margin:1rem 0 .4rem}[hidden]{display:none!important}
 @media(max-width:500px){body{padding:0 1rem;margin:1.5rem auto}.page-header{align-items:flex-start}h1{font-size:1.5rem}.stats{gap:.6rem}.stat strong{font-size:1rem}.panel-body{padding:1.25rem 1rem}.panel-head{padding:.8rem 1rem}.fee-row{flex-wrap:wrap;gap:.2rem 1rem}.fee-row dd{margin-left:auto}.actions button{width:100%}}
 </style>
-<header class="page-header"><h1>Bridge wallet monitor</h1><div class="header-actions"><a class="main-app" href="https://ee-ol-wallet-monitor.vercel.app/">Open main app ↗</a><button id="load">Reload status</button></div></header>
+<link rel="stylesheet" href="/network.css">
+<!-- NETWORK_BANNER -->
+<header class="page-header"><h1>Bridge wallet monitor</h1><div class="header-actions"><a class="main-app" href="/">Open main app ↗</a><button id="load">Reload status</button></div></header>
 <p class="intro">Spendable balance, stranded outputs and wallet runway.</p>
 <div id="preview" class="preview" hidden></div>
 <div id="wallets" class="tabs" aria-label="Wallet"></div>
@@ -77,9 +79,10 @@ async function loadQuote(keepEditor=false){
     const response=await fetch('/api/consolidation?wallet='+encodeURIComponent(selected)+(selectedRate===null?'':'&feeRate='+selectedRate.toFixed(1)),{cache:'no-store'});
     const data=await response.json();if(id!==requestId)return;
     if(!response.ok)throw new Error(data.message||'The estimate is unavailable. Try again shortly.');
+    if(data.network!==model.network)throw new Error('The transaction belongs to a different network. Reload this deployment.');
     quote=data;const amount=document.createElement('p');amount.className='amount';amount.textContent=fmt(data.outputCount)+' stranded outputs · '+fmt(data.totalSats)+' sats';el('quote').replaceChildren(amount);
     el('fee-rate').value=data.feeRate.toFixed(1);el('fee-rate').removeAttribute('aria-invalid');el('fee-down').disabled=data.feeRate<=0.1;el('fee-up').disabled=data.feeRate>=10000;el('fee-total').textContent=fmt(data.feeSats)+' sats';el('recovered').textContent=fmt(data.recoveredSats)+' sats';
-    el('fee-source').textContent=data.sample?'Example economy rate: '+data.recommendedFeeRate.toFixed(1)+' sat/vB.':'Economy rate: '+data.recommendedFeeRate.toFixed(1)+' sat/vB from mempool.space · Checked '+when(data.feeObservedAt);
+    el('fee-source').textContent=data.sample?'Example economy rate: '+data.recommendedFeeRate.toFixed(1)+' sat/vB.':'Economy rate: '+data.recommendedFeeRate.toFixed(1)+' sat/vB · '+data.feeSource+' · Checked '+when(data.feeObservedAt);
     el('destination').textContent='Return address: '+data.destination;
     el('size').textContent='Estimated signed size: '+fmt(data.estimatedVsize)+' vB · One wallet output · PSBT download';
     el('transaction').hidden=false;el('download').disabled=false;
@@ -89,13 +92,15 @@ async function loadStatus(){
   el('load').disabled=true;
   try{
     const response=await fetch('/api/status',{cache:'no-store'});if(!response.ok)throw new Error('Wallet status is temporarily unavailable.');
-    model=await response.json();el('wallets').replaceChildren();
+    const data=await response.json();
+    if(data.network!==document.documentElement.dataset.network)throw new Error('The wallet data belongs to a different network. Reload this deployment.');
+    model=data;el('wallets').replaceChildren();
     if(!model.wallets.some(w=>w.wallet===selected))selected=model.wallets[0].wallet;
     for(const wallet of model.wallets){const button=document.createElement('button');button.textContent=wallet.wallet.toUpperCase()+' wallet';button.dataset.wallet=wallet.wallet;button.onclick=()=>{selected=wallet.wallet;renderWallet();loadQuote()};el('wallets').append(button)}
     el('preview').hidden=!model.preview;el('operators').hidden=!!model.preview;
     if(model.preview)el('preview').textContent=model.preview.sample?'Staging preview · Sample wallets and example fees. Downloads contain test data.':'Staging preview · Saved wallet inventory from '+when(model.preview.capturedAt)+'. Fees and selected outputs are checked live.';
     renderWallet();await loadQuote();
-  }catch(error){el('status').textContent=error.message||'Unable to read wallet status.';quote=null;el('transaction').hidden=true;el('quote').textContent='Reload wallet status to try again.'}
+  }catch(error){el('status').textContent=error.message||'Unable to read wallet status.';model=null;++requestId;quote=null;el('wallets').replaceChildren();el('out').textContent='';el('transaction').hidden=true;el('quote').textContent='Reload wallet status to try again.'}
   finally{el('load').disabled=false}
 }
 el('load').onclick=loadStatus;el('requote').onclick=()=>loadQuote(true);el('retry').onclick=()=>loadQuote();
@@ -115,7 +120,7 @@ el('download').onclick=async()=>{
     const response=await fetch('/api/consolidation?wallet='+encodeURIComponent(current.wallet)+'&feeRate='+current.feeRate.toFixed(1)+'&format=psbt&quote='+current.quoteId,{cache:'no-store'});
     if(!response.ok){const data=await response.json();throw new Error(data.message||'Unable to download the transaction.')}
     const blob=await response.blob();if(id!==requestId)return;
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=current.wallet+(current.sample?'-sample':'')+'-consolidation.psbt';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=current.wallet+'-'+current.network+(current.sample?'-sample':'')+'-consolidation.psbt';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
     showMessage(current.sample?'Sample unsigned transaction downloaded. This file contains test data.':'Unsigned transaction downloaded. Open it in your wallet to sign and broadcast.');
   }catch(error){if(id===requestId){showMessage(error.message,true);quote=null}}
   finally{if(id===requestId)el('download').disabled=!quote}

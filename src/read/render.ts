@@ -2,6 +2,7 @@ import type { ReadModel } from './model.js';
 export function renderText(model: ReadModel): string {
   const lines = [`bridge-wallet-monitor v2 | ${model.network} | read at ${model.readAt}`,
     'Stage 0: naive runway only; no funding alert guarantee.', model.primaryIsPublic ? 'PUBLIC ESPLORA PRIMARY' : 'Internal Esplora primary'];
+  if (model.preview) lines.push(model.preview.sample ? 'DEMO: synthetic testnet wallets and example fees; no live wallet data.' : `PREVIEW: saved inventory from ${model.preview.capturedAt}.`);
   for (const w of model.wallets) {
     lines.push('', `${w.name} (${w.wallet}) — ${w.stale ? 'STALE / UNAVAILABLE' : 'CURRENT'}`);
     if (!w.snapshot) { lines.push('No successful collection yet.'); continue; }

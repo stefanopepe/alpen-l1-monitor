@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "network": "signet",
+  "chain": {
+    "bech32_hrp": "tb",
+    "bip44_coin_type": 1,
+    "bip32_versions": {
+      "public": "043587cf",
+      "private": "04358394"
+    },
+    "checkpoint": {
+      "height": 1,
+      "hash": "00000086d6b2636cb2a392d45edc4ec544a10024d30141c9adf4bfd9de533b53"
+    },
+    "dust_limit_sats": 546,
+    "finality_depth": 6
+  },
+  "wallets": [
+    {
+      "id": "ee",
+      "display_name": "Alpen EE",
+      "descriptor": "wpkh([7ea193b8/84h/1h/0h]tpubDK3isddNGv4tJUSHUKoEdcMxfeubc7rjFqtX5NLC1BQhRsTBgg4qE1DVZ25SQJCMMeoYrPdmnjZHcgnZfe1bjGatpJFW5h7uV3KTaviVxhp/<0;1>/*)#6mkfny58",
+      "vectors": [
+        {
+          "chain": 0,
+          "index": 1,
+          "address": "tb1qw537f77nwg534ehmfs8ef4prdnmseyxlrtmq9g"
+        },
+        {
+          "chain": 1,
+          "index": 0,
+          "address": "tb1qqmtf56q4sjl3t998f8g2qna4kg23n2p4w3yash"
+        }
+      ],
+      "vector_source": "Sparrow descriptors supplied by wallet operator; addresses independently observed in confirmed transaction outputs through Alpen and mempool.space on 2026-10-02. See docs/signet-verification.md.",
+      "gap_scan": {
+        "min_indices": 6,
+        "gap_limit": 20,
+        "ceiling": 50
+      }
+    },
+    {
+      "id": "ol",
+      "display_name": "Alpen OL",
+      "descriptor": "wpkh([5f92e1c8/84h/1h/0h]tpubDKME6Rrn2A7mJqaCA8nhZt6RN6U1cgf9b4Dtgwnp8hAsbpcMvXiVMs3Ty6essPFsf9J6GReiWPqCT4ptVx7c5hCzinFZ7LWUgDhstybzu4F/<0;1>/*)#zsrx2ayp",
+      "vectors": [
+        {
+          "chain": 0,
+          "index": 2,
+          "address": "tb1qry2955px37rgpaceg6zf4r5nh6ga4988xg95zq"
+        },
+        {
+          "chain": 1,
+          "index": 0,
+          "address": "tb1qejnzftnjlksyspaysj6lxfu7c2x22uz50shvqu"
+        }
+      ],
+      "vector_source": "Sparrow descriptors supplied by wallet operator; addresses independently observed in confirmed transaction outputs through Alpen and mempool.space on 2026-10-02. See docs/signet-verification.md.",
+      "gap_scan": {
+        "min_indices": 6,
+        "gap_limit": 20,
+        "ceiling": 50
+      }
+    }
+  ],
+  "providers": [
+    {
+      "name": "alpen-signet",
+      "role": "primary",
+      "tier": "internal",
+      "base_url": "https://esplora.testnet-prod.alpenlabs.io",
+      "auth": {
+        "scheme": "none"
+      },
+      "timeout_ms": 10000,
+      "retries": 0,
+      "min_interval_ms": 250,
+      "max_tip_lag_blocks": 2
+    },
+    {
+      "name": "mempool",
+      "role": "failover",
+      "tier": "public",
+      "base_url": "https://mempool.space/signet/api",
+      "auth": {
+        "scheme": "none"
+      },
+      "timeout_ms": 10000,
+      "retries": 0,
+      "min_interval_ms": 1000,
+      "max_tip_lag_blocks": 2
+    }
+  ],
+  "estimator": {
+    "window_days": 30,
+    "short_window_days": 7,
+    "min_sample": 30,
+    "min_sample_short": 6,
+    "min_intervals": 30,
+    "min_intervals_short": 10
+  },
+  "collection": {
+    "interval_s": 900,
+    "lease_ttl_s": 830,
+    "max_duration_s": 800,
+    "deadline_margin_s": 60,
+    "max_requests_inventory": 250,
+    "max_requests_history": 150,
+    "history_page_cap": 20,
+    "max_tip_age_s": 10800,
+    "stale_after_s": 3300
+  },
+  "retention": {
+    "snapshots_days": 14,
+    "daily_samples_days": 30,
+    "history_days": 90,
+    "runs_days": 90
+  },
+  "upstream": {
+    "repo": "alpenlabs/alpen",
+    "ref": "7f20dcb65fa478c9654626b77a05ea789d28806a",
+    "selector_model_version": 1,
+    "deployed_build_confirmed": false
+  },
+  "fee_api_base_url": "https://mempool.space/signet/api"
+}
