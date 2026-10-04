@@ -6,7 +6,16 @@ The dashboard uses the agreed report layout with UTC and browser-local timestamp
 
 The report reads stored evidence only. No migration or new scheduler is needed. Stored snapshots without the new publication summary remain readable and explicitly show not collected until refreshed. Partial fee histories retain visible coverage; quote averages never carry a quote through a collection gap longer than 30 minutes. DA backlog size and next-DA cost estimates are deferred.
 
-Local checks use Node 24.19.0. Type/configuration checks, lint and dependency boundaries pass. Regression tests cover completion-window exclusions, fee arithmetic, missed transaction estimates, network-scoped stored fees, block deduplication/reorg replacement, missing coverage, failed quotes, zero fees and timezone/daylight-saving conversion. Both HTTP smoke suites pass. A browser inspection against the read-only mainnet database confirms the report layout and 24-hour block/quote coverage. Deployment results are recorded after release.
+Local checks use Node 24.19.0: type/configuration checks, lint, dependency boundaries and **186 tests across 25 files** pass. Regression tests cover completion-window exclusions, fee arithmetic, missed transaction estimates, network-scoped stored fees, block deduplication/reorg replacement, missing coverage, failed quotes, zero fees and timezone/daylight-saving conversion. Both HTTP smoke suites pass (**20 mainnet / 8 Signet**). A scan of 166 source/documentation files found no configured credential values.
+
+Release commit `33c0ce6` was merged into local main at `4d7e9574c5495f80d584123ed188323139eed0fb` and tagged locally as `v2.4.0`. That exact release commit is deployed through the authenticated Vercel CLI to both existing isolated projects:
+
+- Mainnet: `dpl_2CSGQkGWXb2wSk9eGTGnK95pBbWF`, Ready and aliased to [mainnet](https://ee-ol-wallet-monitor.vercel.app/).
+- Signet: `dpl_4D9ccN2aZdt9E5bXg9kmgXj7QPDh`, Ready and aliased to [testnet](https://ee-ol-wallet-monitor-signet.vercel.app/).
+
+Seven public endpoint checks passed on each deployment: home, consolidation, JSON/text status and metrics returned 200; unauthenticated collection/refresh returned 401. Status headers identify version 2.4.0 and the correct network, with no preview mode. Browser inspection verified the report, client timezone, network banner and collapsed transaction details. Fresh version-2.4.0 snapshots for all four wallets contain publication costs, 24-hour/seven-day fee baselines and timing estimates. The first Signet EE attempt hit a provider timeout; a retry successfully refreshed EE. Mainnet's observed epoch was 111 and Signet's 190 at verification. No new migration, signing or transaction broadcast was performed.
+
+GitHub publishing is **pending credential repair**: saved HTTPS credentials returned 403 on push; the connected GitHub app also rejected branch creation; the SSH smart-card attempt failed and its agent subsequently reported no identities. The commits and release tag are preserved locally. No remote merge, remote tag or GitHub Release is claimed. Local verification artifacts are under ignored `.local/releases/v2.4.0/`.
 
 ## Signet and L1 posting progress — v2.3.0
 
