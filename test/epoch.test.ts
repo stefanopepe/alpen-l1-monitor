@@ -94,12 +94,12 @@ it('reports a checkpoint only from its reveal block and removes it on a backward
   expect(snapshotSchema.parse(legacy).epochContext).toBeUndefined();
   const model: ReadModel = { network: 'mainnet', readAt: snapshot.asOf, primaryIsPublic: true, providerErrors: [],
     wallets: [{ wallet: 'ol', name: 'Alpen OL', stale: false, ageSeconds: 0, snapshot }] };
-  expect(renderText(model)).toContain('Most recent observed OL epoch posted to L1: 103');
-  expect(renderText(model)).toContain('1 confirmations at report block 41');
-  expect(renderText(model)).toContain('proof and ASM acceptance are not verified');
+  expect(renderText(model)).toMatch(/Current Strata epoch:\s+103/);
+  expect(renderText(model)).toMatch(/Confirmations:\s+1/);
+  expect(renderText(model)).toMatch(/Proofs \/ acceptance:\s+Not verified/);
   expect(renderMetrics(model)).toContain('bridge_wallet_latest_posted_epoch{network="mainnet",wallet="ol"} 103');
   model.wallets[0]!.snapshot = legacy;
-  expect(renderText(model)).toContain('unavailable (not collected');
+  expect(renderText(model)).toContain('Unavailable · not collected');
   expect(renderMetrics(model)).not.toContain('bridge_wallet_latest_posted_epoch{');
   expect(isCheckpointTag(original, '53545241')).toBe(true);
 });

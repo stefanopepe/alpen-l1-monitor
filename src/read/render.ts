@@ -1,31 +1,6 @@
-import { eeDaReportLines } from './eeDa.js';
-import { epochReportLines } from './epoch.js';
+import { renderReport } from './report.js';
 import type { ReadModel } from './model.js';
-export function renderText(model: ReadModel): string {
-  const lines = [`bridge-wallet-monitor v2 | ${model.network} | read at ${model.readAt}`,
-    'Stage 0: naive runway only; no funding alert guarantee.', model.primaryIsPublic ? 'PUBLIC ESPLORA PRIMARY' : 'Internal Esplora primary'];
-  if (model.preview) lines.push(model.preview.sample ? 'DEMO: synthetic testnet wallets and example fees; no live wallet data.' : `PREVIEW: saved inventory from ${model.preview.capturedAt}.`);
-  for (const w of model.wallets) {
-    lines.push('', `${w.name} (${w.wallet}) — ${w.stale ? 'STALE / UNAVAILABLE' : 'CURRENT'}`);
-    if (!w.snapshot) { lines.push('No successful collection yet.'); continue; }
-    const s = w.snapshot, c = s.composition, r = s.naiveRunway;
-    lines.push(`As of ${s.asOf} | block ${s.tip.height} | ${s.provider}`,
-      `Spendable: ${c.spendableSats} sats | stranded: ${c.strandedSats} sats`,
-      `Inventory total: ${c.balanceSats} sats | unconfirmed above dust: ${c.unconfirmedGtDustSats} sats`,
-      `Largest spendable UTXO: ${c.largestUtxoSats} sats | UTXOs: ${c.counts.total}`,
-      `Naive spendable runway: ${r.days === null ? `unavailable (${r.reason})` : `${r.days.toFixed(2)} days`}`,
-      `Settlement sample: ${r.sampleSize} | history complete: ${r.historyComplete}`);
-    if (w.wallet === 'ee') lines.push(...eeDaReportLines(s.eeDaContext, s.tip));
-    if (w.wallet === 'ol') lines.push(...epochReportLines(s.epochContext, s.tip));
-    if (s.ceilingHit.receive || s.ceilingHit.change) lines.push('DISCOVERY CEILING: balances are LOWER BOUNDS; runway unavailable.');
-    if (s.networkTipOld) lines.push('CHAIN TIP OLD: investigate provider/network freshness.');
-    if (s.feeContext) lines.push(`Network fee context (mempool, ${s.feeContext.observedAt}): ${w.feeContextStale ? 'STALE / UNAVAILABLE' : `${s.feeContext.rates?.fastestFee} sat/vB fastest recommendation`}. Informational; not a runway input.`);
-    if (s.feeContext?.pressure) lines.push(`Pressure collected ${s.feeContext.pressure.observedAt}: ${s.feeContext.pressure.status !== 'available' ? 'UNAVAILABLE' : Date.parse(model.readAt) - Date.parse(s.feeContext.pressure.observedAt) > 1800000 ? 'STALE' : 'AVAILABLE / UNVALIDATED'}.`);
-    if (s.feeContext?.completed) lines.push(`Completed-block fees collected ${s.feeContext.completed.observedAt}: ${s.feeContext.completed.status}; durable evidence: ${s.feeContext.persistence ?? 'legacy run retention only'}.`);
-    if (!s.deployedBuildConfirmed) lines.push('Deployed sequencer build unconfirmed.');
-  }
-  return lines.join('\n') + '\n';
-}
+export function renderText(model: ReadModel, timezone = 'UTC'): string { return renderReport(model, timezone); }
 const escape = (s: string) => s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/"/g, '\\"');
 export function renderMetrics(model: ReadModel): string {
   const lines: string[] = [];

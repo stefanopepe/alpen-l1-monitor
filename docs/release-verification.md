@@ -1,5 +1,13 @@
 # Release verification — updated 2026-10-04
 
+## Wallet report release — v2.4.0
+
+The dashboard uses the agreed report layout with UTC and browser-local timestamps, a shared latest posted Strata epoch, mined-block median fee summaries, four mempool priorities and 24-hour quote averages. Each wallet shows the latest publication's combined commit/reveal fees, effective sat/vB and comparisons against its own preceding 24-hour/seven-day publication rates. The next-transaction estimate uses confirmed commit intervals and stays overdue when missed. Raw transaction IDs are collapsed into details.
+
+The report reads stored evidence only. No migration or new scheduler is needed. Stored snapshots without the new publication summary remain readable and explicitly show not collected until refreshed. Partial fee histories retain visible coverage; quote averages never carry a quote through a collection gap longer than 30 minutes. DA backlog size and next-DA cost estimates are deferred.
+
+Local checks use Node 24.19.0. Type/configuration checks, lint and dependency boundaries pass. Regression tests cover completion-window exclusions, fee arithmetic, missed transaction estimates, network-scoped stored fees, block deduplication/reorg replacement, missing coverage, failed quotes, zero fees and timezone/daylight-saving conversion. Both HTTP smoke suites pass. A browser inspection against the read-only mainnet database confirms the report layout and 24-hour block/quote coverage. Deployment results are recorded after release.
+
 ## Signet and L1 posting progress — v2.3.0
 
 This release combines the previously deployed Signet work with OL checkpoint epochs and EE DA progress. Both network profiles retain their own descriptors, chain checkpoints, fee sources and page labels. Signet's `ALPN` checkpoint marker is configured from the October 2 capture; mainnet retains `STRA`. The captured Signet fixture decodes epoch 185 at block 324662 and is historical evidence, not a current reading or confirmation of the deployed sequencer build.

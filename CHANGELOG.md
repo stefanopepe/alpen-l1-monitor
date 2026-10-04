@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.4.0 — readable wallet report (2026-10-04)
+
+- Replace the dashboard's diagnostic text with the agreed EE/OL report, shared latest posted Strata epoch, concise data-quality checks and collapsed transaction details.
+- Show UTC alongside the browser's client timezone, including daylight-saving offsets and dates. Text API clients can pass an IANA `timezone` parameter; UTC is the default.
+- Show combined commit/reveal publication fees and effective sat/vB, with arrows against the same wallet's preceding 24-hour and seven-day average publication rates. Exclude the target and later completions; incomplete history remains unavailable.
+- Estimate the next commit confirmation from observed commit intervals. Missed estimates remain overdue; stale or insufficient history does not produce a new date.
+- Aggregate stored Bitcoin block median fees and time-weighted mempool recommendations over 24 hours. Deduplicate blocks, expose gaps and partial coverage, and keep Signet/mainnet evidence separate.
+- Use existing snapshot JSON and stored fee evidence; no migration or additional upstream calls on report reads. DA backlog sizing and future DA cost estimation are outside this release.
+
 ## 2.3.0 — Signet support and L1 posting progress (2026-10-04)
 
 - Combine the mainnet monitor and isolated public Signet deployment, with network-labelled pages, Signet fee sources, verified Sparrow descriptors and local wallet export/import tools.
