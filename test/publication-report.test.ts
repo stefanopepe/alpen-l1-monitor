@@ -47,13 +47,14 @@ it('weights saved recommendations by time, preserves zero fees and leaves long g
 it('deduplicates mined blocks, replaces reorg heights and detects missing 24-hour block coverage', () => {
   const first = quote(now - 600, 2), second = quote(now, 2);
   const block = (height: number, timestamp: number, rate: number, id = height) => ({ height, id: hash(id), timestamp, weight: 4000000,
-    extras: { medianFee: rate, feeRange: [rate] } });
+    extras: { medianFee: rate, feeRange: [rate] },
+    transactionFees: { basis: 'median_transaction_fee_per_vbyte' as const, transactionCount: 3, medianSatVb: rate } });
   first.completed = { status: 'available', error: null, observedAt: first.observedAt,
     blocks: [block(1, now - 86401, 99), block(2, now - 1000, 2), block(3, now - 900, 100)] };
   second.completed = { status: 'available', error: null, observedAt: second.observedAt,
     blocks: [block(3, now - 900, 4, 30), block(4, now - 50, 6)] };
   const result = summarizeFees([first, second, first], new Date(now * 1000));
-  expect(result.blocks24h).toEqual({ lowest: 2, highest: 6, average: 4, count: 3, complete: true });
+  expect(result.blocks24h).toEqual({ lowest: 2, highest: 6, average: 4, count: 3, complete: true, unavailableCount: 0, emptyCount: 0 });
   expect(result.latestBlock?.height).toBe(4);
   first.completed.blocks!.splice(1, 1);
   expect(summarizeFees([first, second], new Date(now * 1000)).blocks24h.complete).toBe(false);

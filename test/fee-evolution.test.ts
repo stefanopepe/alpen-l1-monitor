@@ -111,8 +111,9 @@ it('retains fractional completed blocks and provider failures after run cleanup;
     const query = async (sql: string, args?: unknown[]) => { const r = await db.query(sql, args); return { rows: r.rows, rowCount: r.rows.length || r.affectedRows || 0 }; };
     const pool = { query, connect: async () => ({ query, release() {} }) } as unknown as Pool;
     const store = new Store(pool), id = randomUUID(), now = () => new Date((start + DAY) * 1000);
-    const context = await observeFees(async url => String(url).endsWith('/blocks') ? Response.json([{ id: 'a'.repeat(64), height: 900000, timestamp: start, weight: 3999999,
-      extras: { medianFee: 0.125, feeRange: [0.1, 0.125, 1] } }]) : new Response('', { status: 503 }), now);
+    const context = await observeFees(async url => String(url).endsWith('/blocks') ? Response.json([{ id: 'a'.repeat(64), height: 900000, timestamp: start, weight: 3999999, tx_count: 2,
+      extras: { medianFee: 0.125, feeRange: [0.1, 0.125, 1], totalFees: 25 } }]) : String(url).endsWith('/summary')
+      ? Response.json([{ txid: 'b'.repeat(64), fee: 0, vsize: 200 }, { txid: 'c'.repeat(64), fee: 25, vsize: 200 }]) : new Response('', { status: 503 }), now);
     expect(context).toMatchObject({ status: 'unavailable', pressure: { status: 'unavailable' }, completed: { status: 'available', blocks: [{ extras: { medianFee: 0.125 } }] } });
     await store.beginRun('mainnet', id);
     expect(await store.preserveFees('mainnet', id, context)).toBe('durable');
@@ -126,6 +127,9 @@ it('retains fractional completed blocks and provider failures after run cleanup;
     const exported = await exportObservations(pool, 'mainnet', '2020-01-01', '2030-01-01');
     expect(exported.observations).toHaveLength(1);
     expect(exported.observations[0]!.feeContext?.completed?.blocks?.[0]?.extras.medianFee).toBe(0.125);
+    expect(exported.observations[0]!.feeContext?.completed?.blocks?.[0]?.transactionFees).toEqual({
+      basis: 'median_transaction_fee_per_vbyte', transactionCount: 1, medianSatVb: 0.125,
+    });
     await query("UPDATE fee_observations SET sha256=$1", ['f'.repeat(64)]);
     await expect(exportObservations(pool, 'mainnet', '2020-01-01', '2030-01-01')).rejects.toThrow('E_OBSERVATIONS_READ');
   } finally { await db.close(); }

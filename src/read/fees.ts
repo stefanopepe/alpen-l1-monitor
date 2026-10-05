@@ -5,8 +5,8 @@ import { feeContextSchema } from '../observations/schema.js';
 export interface FeeReport {
   observedAt: string | null; rates: FeeRates | null; stale: boolean;
   averageRates24h: FeeRates | null; quoteCoverageSeconds: number;
-  latestBlock: { height: number; timestamp: number; medianSatVb: number; observedAt: string } | null;
-  blocks24h: { lowest: number | null; highest: number | null; average: number | null; count: number; complete: boolean };
+  latestBlock: { height: number; timestamp: number; medianSatVb: number | null; observedAt: string; empty: boolean } | null;
+  blocks24h: { lowest: number | null; highest: number | null; average: number | null; count: number; complete: boolean; unavailableCount: number; emptyCount: number };
 }
 const keys: (keyof FeeRates)[] = ['fastestFee', 'halfHourFee', 'hourFee', 'economyFee', 'minimumFee'];
 const zeroRates = (): FeeRates => ({ fastestFee: 0, halfHourFee: 0, hourFee: 0, economyFee: 0, minimumFee: 0 });
@@ -44,11 +44,22 @@ export function summarizeFees(contexts: readonly FeeContext[], now: Date, staleA
   const tip = latestObservation?.blocks?.reduce((a, b) => a.height > b.height ? a : b);
   const blocks = new Map<number, NonNullable<NonNullable<FeeContext['completed']>['blocks']>[number]>();
   for (const observation of completed) for (const block of observation.blocks ?? []) {
-    if (tip && block.height <= tip.height && block.timestamp <= end) blocks.set(block.height, block);
+    if (tip && block.height <= tip.height && block.timestamp <= end) {
+      const previous = blocks.get(block.height);
+      // A failed retry cannot erase verified fees for the same immutable block. Reorgs must replace them.
+      blocks.set(block.height, previous?.id === block.id && previous.transactionFees && !block.transactionFees
+        ? { ...block, transactionFees: previous.transactionFees, transactionFeesError: undefined } : block);
+    }
   }
   const ordered = [...blocks.values()].sort((a, b) => a.height - b.height);
-  const window = ordered.filter(b => b.timestamp > start), medians = window.map(b => b.extras.medianFee);
+  const window = ordered.filter(b => b.timestamp > start);
+  const medians = window.flatMap(b => b.transactionFees?.medianSatVb == null ? [] : [b.transactionFees.medianSatVb]);
+  const unavailableCount = window.filter(b => !b.transactionFees).length;
+  const emptyCount = window.filter(b => b.transactionFees?.transactionCount === 0).length;
+  // A mined block can have a header timestamp ahead of the collector's clock.
+  const latest = tip ? blocks.get(tip.height) ?? tip : undefined;
   const complete = !!tip && !!latestObservation && end - time(latestObservation.observedAt) <= staleAfter &&
+    unavailableCount === 0 &&
     ordered.some(b => b.timestamp <= start) && ordered.at(-1)?.height === tip.height &&
     ordered.every((b, i) => i === 0 || b.height === ordered[i - 1]!.height + 1);
   const stale = !current || current.status !== 'available' || !current.rates || end - time(current.observedAt) > staleAfter;
@@ -56,8 +67,9 @@ export function summarizeFees(contexts: readonly FeeContext[], now: Date, staleA
     observedAt: current?.observedAt ?? null, rates: current?.status === 'available' ? current.rates : null, stale,
     averageRates24h: quoteCoverageSeconds ? Object.fromEntries(keys.map(k => [k, sums[k] / quoteCoverageSeconds])) as unknown as FeeRates : null,
     quoteCoverageSeconds,
-    latestBlock: tip && latestObservation ? { height: tip.height, timestamp: tip.timestamp, medianSatVb: tip.extras.medianFee, observedAt: latestObservation.observedAt } : null,
+    latestBlock: latest && latestObservation ? { height: latest.height, timestamp: latest.timestamp, medianSatVb: latest.transactionFees?.medianSatVb ?? null,
+      observedAt: latestObservation.observedAt, empty: latest.transactionFees?.transactionCount === 0 } : null,
     blocks24h: { lowest: medians.length ? Math.min(...medians) : null, highest: medians.length ? Math.max(...medians) : null,
-      average: medians.length ? medians.reduce((a, b) => a + b, 0) / medians.length : null, count: medians.length, complete },
+      average: medians.length ? medians.reduce((a, b) => a + b, 0) / medians.length : null, count: medians.length, complete, unavailableCount, emptyCount },
   };
 }

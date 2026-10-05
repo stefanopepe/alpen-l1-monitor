@@ -4,7 +4,7 @@ import { summarizeFees } from './fees.js';
 import { reportTime } from './time.js';
 
 const number = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
-const rate = (value: number | null | undefined) => value == null ? 'Unavailable' : number(value);
+const rate = (value: number | null | undefined) => value == null ? 'Unavailable' : value > 0 && value < 0.01 ? '<0.01' : number(value);
 const row = (label: string, value: string | number) => `${(label + ':').padEnd(26)} ${value}`;
 const reason: Record<string, string> = {
   discovery_incomplete: 'address discovery incomplete', history_incomplete: 'history incomplete',
@@ -18,12 +18,12 @@ function trend(current: number | undefined, baseline: PublicationAverage | undef
   const unchanged = Math.abs(current - average) <= Math.max(1, current, average) * 1e-12;
   const arrow = unchanged ? '→' : current > average ? '↑' : '↓';
   const change = unchanged ? '0%' : percent === null ? 'from zero' : percent === 0 ? '<0.1%' : number(Math.abs(percent)) + '%';
-  return `${arrow} ${change} · average ${number(average)} sat/vB · ${baseline.sampleSize} publications`;
+  return `${arrow} ${change} · average ${rate(average)} sat/vB · ${baseline.sampleSize} publications`;
 }
 function publicationCost(s: Snapshot): string[] {
   const latest = s.publicationReport?.latest;
   return [row('Total publication cost', latest ? `${number(latest.feeSats)} sats` : 'Unavailable'),
-    row('Fee rate', latest ? `${number(latest.feeRateSatVb)} sat/vB` : 'Unavailable'),
+    row('Fee rate', latest ? `${rate(latest.feeRateSatVb)} sat/vB` : 'Unavailable'),
     row('Trend vs previous 24h', trend(latest?.feeRateSatVb, latest?.previous24h)),
     row('Trend vs previous 7d', trend(latest?.feeRateSatVb, latest?.previous7d))];
 }
@@ -41,9 +41,12 @@ export function renderReport(model: ReadModel, timezone = 'UTC'): string {
   if (model.preview) lines.push(row('Preview captured', reportTime(model.preview.capturedAt, timezone)));
   const block = fees.latestBlock, b = fees.blocks24h;
   lines.push('', '', 'BITCOIN FEES · sat/vB', '',
-    row('Latest block · median', block ? `${rate(block.medianSatVb)} · block ${number(block.height)}${Date.parse(model.readAt) - Date.parse(block.observedAt) > 3300000 ? ' · STALE' : ''}` : 'Unavailable'),
+    row('Latest block · median', block ? `${block.empty ? 'No fee-paying sample · coinbase only' : rate(block.medianSatVb)} · block ${number(block.height)}${Date.parse(model.readAt) - Date.parse(block.observedAt) > 3300000 ? ' · STALE' : ''}` : 'Unavailable'),
     row('Last 24h · lowest', rate(b.lowest)), row('Last 24h · highest', rate(b.highest)), row('Last 24h · average', rate(b.average)),
-    row('Basis', 'Median fee rate of each mined block'), row('24h block coverage', `${b.complete ? 'Complete' : b.count ? 'Partial · available blocks only' : 'Unavailable'} · ${b.count} blocks`));
+    row('Basis', 'Median transaction fee / vB per block; coinbase excluded'),
+    row('24h block coverage', `${b.complete ? 'Complete' : b.count ? 'Partial · available blocks only' : 'Unavailable'} · ${b.count} blocks with transactions`));
+  if (b.unavailableCount) lines.push(row('Block fees unavailable', `${b.unavailableCount} observed blocks · excluded from averages`));
+  if (b.emptyCount) lines.push(row('Coinbase-only blocks', `${b.emptyCount} · excluded from averages`));
   if (block) lines.push(row('Block fees observed', reportTime(block.observedAt, timezone)));
   lines.push('', '', 'MEMPOOL RECOMMENDATIONS · sat/vB', '', `Priority              Current       24h average${fees.quoteCoverageSeconds < 86399 ? ' · partial' : ''}`);
   for (const [label, key] of [['No priority', 'economyFee'], ['Low priority', 'hourFee'], ['Medium priority', 'halfHourFee'], ['High priority', 'fastestFee']] as const)

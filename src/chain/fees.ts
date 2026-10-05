@@ -1,4 +1,5 @@
-import { feeRatesSchema, completedBlockSchema } from '../observations/schema.js';
+import { feeRatesSchema } from '../observations/schema.js';
+import { enrichBlockFees, sourceBlockSchema } from './blockFees.js';
 import type { FeeContext } from '../types.js';
 import { z } from 'zod';
 import { projectedBlockSchema, type FeePressure } from '../fees/schema.js';
@@ -24,9 +25,10 @@ export async function observeCompletedFees(fetcher: typeof fetch = fetch, now = 
       redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) throw new Error(response.status === 429 ? 'E_COMPLETED_RATE_LIMITED' : 'E_COMPLETED_HTTP');
-    const parsed = z.array(completedBlockSchema).min(1).max(15).safeParse(await response.json());
+    const parsed = z.array(sourceBlockSchema).min(1).max(15).safeParse(await response.json());
     if (!parsed.success || new Set(parsed.data.map(b => b.id)).size !== parsed.data.length) throw new Error('E_COMPLETED_SCHEMA');
-    return { observedAt: now().toISOString(), status: 'available', blocks: parsed.data, error: null };
+    const blocks = await enrichBlockFees(parsed.data, fetcher, baseUrl);
+    return { observedAt: now().toISOString(), status: 'available', blocks, error: null };
   } catch (e) {
     const error = e instanceof Error && /^E_COMPLETED_[A-Z_]+$/.test(e.message) ? e.message : 'E_COMPLETED_UNAVAILABLE';
     return { observedAt: now().toISOString(), status: 'unavailable', blocks: null, error };

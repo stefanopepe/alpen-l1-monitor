@@ -1,10 +1,17 @@
 import { z } from 'zod';
 import { feePressureSchema } from '../fees/schema.js';
 const rate = z.number().finite().nonnegative();
+export const transactionFeesSchema = z.object({
+  basis: z.literal('median_transaction_fee_per_vbyte'),
+  transactionCount: z.number().int().nonnegative(), medianSatVb: rate.nullable(),
+}).refine(v => v.transactionCount === 0 ? v.medianSatVb === null : v.medianSatVb !== null);
 export const completedBlockSchema = z.object({
   id: z.string().regex(/^[a-f0-9]{64}$/), height: z.number().int().nonnegative(),
   timestamp: z.number().int().nonnegative(), weight: z.number().int().min(0).max(4000000),
-  extras: z.object({ medianFee: rate, feeRange: z.array(rate).min(1).max(100) }),
+  tx_count: z.number().int().positive().max(20000).optional(),
+  extras: z.object({ medianFee: rate, feeRange: z.array(rate).min(1).max(100), totalFees: z.number().int().safe().nonnegative().optional() }),
+  transactionFees: transactionFeesSchema.optional(),
+  transactionFeesError: z.string().regex(/^E_BLOCK_FEES_[A-Z_]+$/).optional(),
 });
 export const completedFeesSchema = z.object({
   observedAt: z.iso.datetime(), status: z.enum(['available', 'unavailable']),

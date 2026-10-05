@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.2 — transaction-based block fees (2026-10-05)
+
+- Calculate each block's median from actual non-coinbase transaction fees divided by `ceil(vsize)`, preserving fractional sat/vB. Do not use mempool's capacity-based or preliminary integer-valued `medianFee` for the report.
+- Validate transaction counts, unique IDs and total fees against block metadata. Bound summary requests to 15 blocks, three concurrent requests and a 20-second enrichment deadline. A failed summary leaves that block unavailable without losing recommendations or other blocks.
+- Exclude legacy/unavailable block statistics and coinbase-only blocks from 24-hour averages; expose partial coverage and excluded counts. Preserve a verified same-block result across failed retries, while replacing it on reorgs.
+- Show positive rates below display precision as `<0.01`, keeping genuine zero-fee transactions distinct. No database migration is required; corrected historical coverage accumulates through normal collections.
+
 ## 2.4.1 — preserve small fee trends (2026-10-04)
 
 - Keep the correct up/down arrow when a real fee change rounds below 0.1%; display `<0.1%` instead of reporting an unchanged rate.
