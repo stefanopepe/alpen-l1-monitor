@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.2 — explicit transaction fee comparisons (2026-10-06)
+
+- Replace the misleading “Overpayment estimate” label with “Fee vs period benchmark” or “Fee vs same-block median,” including the reference rate in the inspector, transaction list and chart tooltips.
+- Explicitly identify missing same-block evidence. A period average cannot establish a transaction's position among others in its block, and being above either reference does not establish avoidable fees.
+- Preserve recorded fees, virtual sizes, benchmark selection and comparison arithmetic.
+
 ## 2.6.1 — native ECharts timeline navigation (2026-10-06)
 
 - Replace the funding timeline with Apache ECharts 6.1.0, using its built-in overview slider, draggable range handles, panning, zoom gestures, reset, time axis and annotations. Remove the Chart.js zoom plugin and custom zoom controls.

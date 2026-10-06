@@ -2,6 +2,7 @@ import { expect, it } from 'vitest';
 import { assessFee, summarizeStoredTransactions, summarizeTransactions } from '../src/transactions.js';
 import { archiveTransactions } from '../src/replay/transactions.js';
 import { replayFixture } from './replay-fixture.js';
+import { feeLabel } from '../src/replay/report/transactions.js';
 
 it('preserves individual commit/reveal fees and rounds each transaction vsize separately', () => {
   const { archive } = replayFixture();
@@ -31,6 +32,18 @@ it('reports an estimated premium, distinguishes unknown evidence, and avoids rou
   expect(assessFee({ ...tx, feeSats: 400 })).toMatchObject({ status: 'at_or_below', excessSats: 0 });
   expect(assessFee({ ...tx, benchmark: null }).status).toBe('unknown');
   expect(assessFee({ ...tx, benchmark: { ...tx.benchmark, kind: 'period_median', integerQuantized: true, rate: 0 } }).status).toBe('unknown');
+});
+
+it('distinguishes a period premium from the same transaction being below its block median', () => {
+  const { archive } = replayFixture();
+  const tx = { ...archiveTransactions(archive)[0]!, feeSats: 807, vsize: 172, feeRate: 807 / 172,
+    benchmark: { kind: 'period_median' as const, rate: 4, start: 0, end: 1800, integerQuantized: true } };
+  expect(assessFee(tx).premium).toBeCloseTo(0.173, 3);
+  expect(feeLabel(tx)).toBe('+119 sats vs period benchmark (4 sat/vB)');
+  // A different block could have a higher median: the period comparison must not imply overpayment.
+  expect(feeLabel({ ...tx, benchmark: { kind: 'block_median', rate: 5, start: 0, end: 0 } })).toBe('At or below same-block median (5 sat/vB)');
+  expect(feeLabel({ ...tx, benchmark: null })).toBe('Fee comparison unavailable');
+  expect(feeLabel({ ...tx, benchmark: { ...tx.benchmark, rate: 0 } })).toBe('Fee comparison unavailable');
 });
 
 it('deduplicates stored reveals, rejects malformed/unconfirmed records, and exposes only confirmed summaries', () => {
