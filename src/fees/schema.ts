@@ -66,6 +66,7 @@ export interface FeeStudy {
   stability: { year: number; days: number; finestHours: number; coarsestHours: number; weekdayWeekendRatio: number | null }[];
   forecasts: { model: FeeModelId; reason: string | null; points: FeeForecastPoint[]; summaries: FeeForecastSummary[] }[];
   evaluations: FeeEvaluation[]; scores: FeeScore[];
+  evaluationPeriods?: { horizonDays: number; sampling: string; from: number; to: number }[];
   warnings: string[];
 }
 export const feeModelConfigSchema = z.object({

@@ -97,4 +97,15 @@ it('persists report data, renders real report labels and keeps IDs in transactio
   expect(renderText(model)).toContain('→ 0%');
   const legacy = { ...saved }; delete legacy.publicationReport;
   expect(snapshotSchema.parse(legacy).publicationReport).toBeUndefined();
+  saved.composition.spendableSats = 0;
+  saved.composition.unconfirmedGtDustSats = 10000;
+  saved.naiveRunway.days = 0;
+  saved.naiveRunway.drainPerDaySats = 2000;
+  expect(renderText(model)).toMatch(/Estimated runway:\s+5 days/);
+  expect(renderText(model)).toMatch(/Funding balance:\s+10,000 sats · includes pending funds/);
+  saved.composition.spendableSats = 10000;
+  saved.composition.unconfirmedGtDustSats = 0;
+  expect(renderText(model)).toMatch(/Estimated runway:\s+5 days/);
+  model.wallets[0]!.stale = true;
+  expect(renderText(model)).toMatch(/Estimated runway:\s+Unavailable · stale wallet data/);
 });

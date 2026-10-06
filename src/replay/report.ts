@@ -8,6 +8,7 @@ import type { ReplayRecord, Evaluation, Score } from './evaluate.js';
 import type { OutcomeEvent } from './outcomes.js';
 import { feePanelMarkup, readFeeStudy } from '../fees/report.js';
 import { writeJson } from './archive.js';
+import { renderFundingPresentation } from '../ui/fundingPresentation.js';
 
 const require = createRequire(import.meta.url);
 export function buildReport(dir: string, feeStudyFile?: string): string {
@@ -16,16 +17,17 @@ export function buildReport(dir: string, feeStudyFile?: string): string {
   const scores = JSON.parse(readFileSync(join(dir, 'scores.json'), 'utf8')) as Score[];
   const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { network: string };
   const training: unknown = JSON.parse(readFileSync(join(dir, 'training.json'), 'utf8'));
+  const transactions: unknown = existsSync(join(dir, 'transactions.json')) ? JSON.parse(readFileSync(join(dir, 'transactions.json'), 'utf8')) : [];
   const savedFeeStudy = join(dir, 'fee-study.json');
   const feeStudy = feeStudyFile ? readFeeStudy(feeStudyFile) : existsSync(savedFeeStudy) ? readFeeStudy(savedFeeStudy) : undefined;
   if (feeStudy && feeStudy.network !== manifest.network) throw new Error('E_FEE_STUDY_NETWORK');
   if (feeStudyFile && feeStudy) writeJson(savedFeeStudy, feeStudy);
-  const data = gzipSync(Buffer.from(JSON.stringify({ records, ...outcomes, scores, manifest, training, feeStudy })), { level: 9 }).toString('base64');
+  const data = gzipSync(Buffer.from(JSON.stringify({ records, ...outcomes, scores, manifest, training, feeStudy, transactions })), { level: 9 }).toString('base64');
   const bootstrap = readFileSync(require.resolve('bootstrap/dist/css/bootstrap.min.css'), 'utf8').replace(/\/\*# sourceMappingURL=.*?\*\//g, '');
   const ui = fileURLToPath(new URL('./report/', import.meta.url));
   const script = buildSync({ entryPoints: [join(ui, 'client.ts')], bundle: true, write: false, minify: true,
     platform: 'browser', format: 'iife', target: 'es2022', legalComments: 'inline' }).outputFiles[0]!.text;
-  const html = readFileSync(join(ui, 'template.html'), 'utf8')
+  const html = renderFundingPresentation(readFileSync(join(ui, 'template.html'), 'utf8'))
     .replace('<!-- FEE_STUDY -->', () => feeStudy ? feePanelMarkup() : '')
     .replace('<!-- FEE_NAV -->', () => feeStudy ? '<a href="#network-fees">Seasonal fees</a>' : '')
     .replace('/* REPORT_STYLES */', () => bootstrap + '\n' + readFileSync(join(ui, 'styles.css'), 'utf8'))

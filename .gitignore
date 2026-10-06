@@ -12,3 +12,4 @@ coverage/
 .DS_Store
 .pnpm-store/
 config/staging-snapshot.json
+config/research-provenance.json

@@ -1,5 +1,5 @@
 import Chart from 'chart.js/auto';
-import { forecastAt, forecastOutlook } from './state.js';
+import { currentFeeFresh, forecastAt, forecastOutlook } from './state.js';
 import type { FeeStudy } from '../schema.js';
 
 const names = { baseline: 'Recent baseline', seasonal: 'Baseline + seasonality', pressure: 'Seasonality + pressure', rolling: 'Rolling arithmetic mean', ewma: 'EWMA', weekday_hour: 'Same weekday / hour' };
@@ -9,7 +9,7 @@ const fmt = (v: number | null) => v === null ? '—' : new Intl.NumberFormat('en
 const utc = (t: number) => new Date(t * 1000).toISOString().replace('T', ' ').slice(0, 16);
 const stateLabel = (state: string) => state.replaceAll('_', ' ');
 const percent = (v: number | null) => v === null ? '—' : (100 * v).toFixed(1) + '%';
-export function renderFeeStudy(root: HTMLElement, study: FeeStudy) {
+export function renderFeeStudy(root: HTMLElement, study: FeeStudy, options: { live?: boolean } = {}) {
   const el = <T extends HTMLElement = HTMLElement>(key: string) => root.querySelector<T>(`[data-fee="${key}"]`)!;
   const text = (key: string, value: string) => { el(key).textContent = value; };
   const row = (key: string, values: string[]) => {
@@ -17,7 +17,8 @@ export function renderFeeStudy(root: HTMLElement, study: FeeStudy) {
     for (const value of values) { const td = document.createElement('td'); td.textContent = value; tr.append(td); }
     el(key).append(tr);
   };
-  text('asOf', 'Latest saved fee origin: ' + utc(study.asOf) + ' UTC · Saved study; no live refresh');
+  for (const key of ['resolutions', 'stability', 'warnings', 'heatmap']) el(key).replaceChildren();
+  text('asOf', 'Fee study updated: ' + utc(study.asOf) + ' UTC · ' + (options.live ? 'Refreshes hourly' : 'Saved study; no live refresh'));
   text('years', fmt((study.coverage.end - study.coverage.start) / 86400 / 365.25) + ' years');
   text('buckets', study.coverage.buckets.toLocaleString('en') + ' observed buckets');
   text('pressure', study.coverage.pressureStatus === 'available'
@@ -50,17 +51,19 @@ export function renderFeeStudy(root: HTMLElement, study: FeeStudy) {
     el('forecastRows').replaceChildren(); el('scoreRows').replaceChildren(); el('calibrationRows').replaceChildren(); el('diagnosticRows').replaceChildren();
     const historical = view.value === 'historical';
     const saved = forecastAt(study, historical && selectedTime !== null ? selectedTime : study.asOf);
-    const forecasts = historical ? saved?.forecasts ?? [] : study.forecasts;
+    const stale = options.live && !historical && !currentFeeFresh(study);
+    let forecasts = stale ? [] : historical ? saved?.forecasts ?? [] : study.forecasts;
     const origin = historical ? saved?.origin : study.asOf;
     const referenceTime = historical ? selectedTime! : Date.now() / 1000;
     const historyThrough = historical ? saved?.historyThrough : study.coverage.end;
     const age = historyThrough == null ? null : Math.max(0, (referenceTime - historyThrough) / 3600);
-    text('freshness', origin === undefined ? 'No fee forecast was saved by this block. Wallet replay remains available.' :
+    text('freshness', stale ? 'STALE · Current fee estimates unavailable. Last successful study: ' + utc(study.asOf) + ' UTC. Waiting for fresh fee history and a successful refresh.' : origin === undefined ? 'No fee forecast was saved by this block. Wallet replay remains available.' :
       `${historical ? 'Forecast available at selected block' : 'Latest saved fees'} · Origin ${utc(origin)} UTC · History through ${historyThrough == null ? 'unavailable' : utc(historyThrough) + ' UTC'} · ${age === null ? 'Freshness unknown' : age.toFixed(1) + ' hours old' + (age > 24 ? ' · STALE' : '')} · ${study.availabilityMode === 'recorded' ? 'Recorded availability' : 'Legacy availability assumed; retrospective experiment'}`);
-    const pressureForecast = forecasts.find(f => f.model === 'pressure');
     const pressureAge = saved?.pressureObservedAt ? referenceTime - Date.parse(saved.pressureObservedAt) / 1000 : null;
     const pressureStale = pressureAge !== null && pressureAge > study.config.pressureFreshnessSeconds;
-    text('pressure', !historical && pressureStale ? `Pressure snapshot is STALE now (${fmt(pressureAge! / 3600)} hours old). Seasonal fallback remains available. The saved pressure curve reflects only the stated forecast origin.` : pressureForecast?.points.length ? 'Pressure: available but UNVALIDATED until frozen held-out checks pass. Collection: ' + (saved?.pressureObservedAt ?? 'see latest study provenance') :
+    if (options.live && !historical && pressureStale) forecasts = forecasts.map(f => f.model === 'pressure' ? { ...f, points: [], summaries: [], reason: 'pressure_history_unavailable' } : f);
+    const pressureForecast = forecasts.find(f => f.model === 'pressure');
+    text('pressure', stale ? 'Pressure estimate unavailable until the fee study refreshes.' : !historical && pressureStale ? `Pressure snapshot is STALE now (${fmt(pressureAge! / 3600)} hours old). Use the seasonal forecast when available; the pressure curve is hidden.` : pressureForecast?.points.length ? 'Pressure: available but UNVALIDATED until frozen held-out checks pass. Collection: ' + (saved?.pressureObservedAt ?? 'see latest study provenance') :
       `Pressure: ${stateLabel(saved?.pressureState ?? pressureForecast?.reason ?? 'missing')}. Seasonal forecast is the fallback when available.`);
     const outlook = forecastOutlook(forecasts);
     text('outlook', outlook ? `Recent demand: ${fmt(outlook.current)} sat/vB · Expected busiest six hours: ${utc(outlook.busy.time)} UTC (${fmt(outlook.busy.central)} sat/vB) · Quietest six hours: ${utc(outlook.quiet.time)} UTC (${fmt(outlook.quiet.central)} sat/vB).` : 'Demand outlook unavailable: insufficient known fee history.');
@@ -84,7 +87,8 @@ export function renderFeeStudy(root: HTMLElement, study: FeeStudy) {
       row('diagnosticRows', [d.group, names[d.model], String(d.samples), fmt(d.mae), `${d.p90Misses} / ${d.quantileSamples}`]);
     text('validation', 'Validation: ' + stateLabel(study.validation?.state ?? 'legacy_exploratory') + '. ' + (study.validation?.checks.map(c => `${names[c.model]} ${c.horizonDays}d: ${c.state}${c.reasons.length ? ' (' + c.reasons.join(', ') + ')' : ''}`).join('; ') ?? ''));
     const es = study.evaluations.filter(e => e.horizonDays === horizon && (sampling === 'daily' || e.nonOverlapping));
-    text('scorePeriod', es.length ? `${utc(es[0]!.origin)} – ${utc(es.at(-1)!.origin)} UTC · ${horizon}-day average fee benchmark. Models refit using only history available at each origin.` : 'No eligible backtest dates.');
+    const period = study.evaluationPeriods?.find(p => p.horizonDays === horizon && p.sampling === sampling);
+    text('scorePeriod', es.length || period ? `${utc(period?.from ?? es[0]!.origin)} – ${utc(period?.to ?? es.at(-1)!.origin)} UTC · ${horizon}-day average fee benchmark. Models refit using only history available at each origin.` : 'No eligible backtest dates.');
     chart?.destroy();
     chart = new Chart(el<HTMLCanvasElement>('chart'), { type: 'line', data: { datasets: forecasts.filter(f => f.points.length && ['baseline', 'seasonal', 'pressure'].includes(f.model)).map((f, i) => ({
       label: names[f.model], data: f.points.slice(0, horizon * 24).map(p => ({ x: p.time * 1000, y: p.central })),
@@ -96,5 +100,6 @@ export function renderFeeStudy(root: HTMLElement, study: FeeStudy) {
         y: { min: 0, title: { display: true, text: 'Network fee benchmark · sat/vB' } } } } });
   };
   el<HTMLSelectElement>('horizon').onchange = render; el<HTMLSelectElement>('sampling').onchange = render; view.onchange = render; render();
-  return { selectAt(time: number) { selectedTime = time; view.querySelector<HTMLOptionElement>('option[value="historical"]')!.disabled = false; view.value = 'historical'; render(); } };
+  if (options.live) view.querySelector<HTMLOptionElement>('option[value="latest"]')!.textContent = 'Latest fee study';
+  return { destroy() { chart?.destroy(); }, selectAt(time: number, latest = false) { selectedTime = time; view.querySelector<HTMLOptionElement>('option[value="historical"]')!.disabled = false; view.value = latest ? 'latest' : 'historical'; render(); } };
 }

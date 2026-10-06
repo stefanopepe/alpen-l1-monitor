@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.6.1 — native ECharts timeline navigation (2026-10-06)
+
+- Replace the funding timeline with Apache ECharts 6.1.0, using its built-in overview slider, draggable range handles, panning, zoom gestures, reset, time axis and annotations. Remove the Chart.js zoom plugin and custom zoom controls.
+- Put confirmed commits, reveals and other wallet actions in separate ECharts scatter rows, with exact fee/size details in native tooltips and the existing transaction inspector on click.
+- Preserve the user’s selected date range through live updates and preserve the original balance, forecast and transaction evidence. Include ECharts and ZRender redistribution notices in hosted and portable reports.
+
+## 2.6.0 — timeline exploration and transaction inspection (2026-10-06)
+
+- Add Chart.js zoom/pan, 7-/30-/90-day and full-history views, with a reset button. Preserve the chosen view during automatic refresh; changing the view does not change the forecast.
+- Show clickable confirmed-transaction markers, including commits and reveals, a filterable list and a block transaction chooser for overlapping events.
+- Show exact per-transaction virtual size, sats paid, sat/vB, related package totals and explorer links. Compare with the same block’s recorded transaction median when available, otherwise an explicitly coarse historical benchmark; missing or quantized-zero comparisons remain unknown. A premium is not proof a lower fee would have confirmed.
+- Read current transactions from stored collector history and supplement the immutable historical report with verified archive summaries. Preserve historical balance plateaus while breaking genuine gaps between collected samples.
+
+## 2.5.2 — balance planning without confirmation dips (2026-10-06)
+
+- Use one funding-balance line and calculate displayed runway from confirmed plus recorded pending funds, assuming normal confirmation. Keep the confirmation breakdown in inventory and remove the separate reference line.
+- Apply the same planning balance to the monitor report. Preserve stored observations, spending rates, small-output exclusions and historical backtests; do not invent historical mempool balances.
+
+## 2.5.1 — pending funds and confirmed-only projections (2026-10-06)
+
+- Label chart and report funding balances as confirmed-only. Show a separate confirmed-plus-pending reference for collected observations; historical mempool balances remain unknown.
+- Show “Awaiting confirmation” without a depletion forecast when confirmed funding is zero but pending outputs remain. Preserve stored balances, estimates and historical backtests.
+- Check the operator-reported deployed revision `d24ebe2`: new commits require confirmed inputs above 546 sats; qualifying reveals can spend an unconfirmed parent, but no automatic CPFP fee-bumping path was found. Distinguish that release from newer upstream's RBF replacement machinery and 546-sat eligibility.
+
+## 2.5.0 — continuously updated time machine (2026-10-06)
+
+- Use the monitor’s collected wallet observations for current balances and runway, with automatic page refresh and explicit data timestamps. Preserve the original replay and its wallet backtests.
+- Refresh the mainnet seasonal fee study hourly on Vercel from newly captured mempool history and recorded pressure observations; preserve first-observed bucket values and causal daily forecasts.
+- Hide stale current wallet/fee estimates, leave missing history as chart gaps, and mark collector-unrecorded alternative models unavailable.
+- Add schema 3 for an independent research lease, the last successful fee study, and durable daily wallet samples. Reads remain read-only and Signet keeps its own collection separate.
+
 ## 2.4.4 — consistent time machine design (2026-10-06)
 
 - Match the hosted time machine to the monitor's heading, network banner, system typography, navy controls and plain bordered panels. Share the monitor stylesheet across both pages and retain the saved analysis and interactive controls.

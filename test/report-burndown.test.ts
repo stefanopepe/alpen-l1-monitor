@@ -48,3 +48,56 @@ it('supports a single replay block without creating any observed future point', 
   expect(chart.actual[0]!.x).toBe(chart.origin);
   expect(chart.to).toBeGreaterThan(chart.from);
 });
+
+it('keeps planning balance and runway stable as pending change confirms', async () => {
+  const rows = await records(), pending = rows[0]!, confirmed = rows[1]!;
+  pending.collected = confirmed.collected = true;
+  pending.snapshot.composition.spendableSats = 634;
+  pending.snapshot.composition.unconfirmedGtDustSats = 86975;
+  pending.snapshot.composition.strandedSats = 54600;
+  confirmed.snapshot.composition.spendableSats = 87609;
+  confirmed.snapshot.composition.unconfirmedGtDustSats = 0;
+  confirmed.snapshot.composition.strandedSats = 54600;
+  pending.forecasts.find(f => f.model === 'current')!.dailySats = 10000;
+  confirmed.forecasts.find(f => f.model === 'current')!.dailySats = 10000;
+  const before = buildBurndown(rows, pending, 'current'), after = buildBurndown(rows, confirmed, 'current');
+  expect(before.balance).toBe(87609);
+  expect(after.balance).toBe(before.balance);
+  expect(before.depletion! - before.origin).toBeCloseTo(8.7609 * 86400000);
+  expect(after.depletion! - after.origin).toBe(before.depletion! - before.origin);
+  expect(before.actual.filter(p => p.height === pending.snapshot.tip.height || p.height === confirmed.snapshot.tip.height).map(p => p.y)).toEqual([87609, 87609]);
+});
+
+it('does not invent a rate or exhaustion when all funding is pending', async () => {
+  const [pending] = await records(); pending!.collected = true;
+  pending!.snapshot.composition.spendableSats = 0;
+  pending!.snapshot.composition.unconfirmedGtDustSats = 100000;
+  const current = pending!.forecasts.find(f => f.model === 'current')!;
+  current.dailySats = null;
+  expect(buildBurndown([pending!], pending!, 'current')).toMatchObject({ balance: 100000, depletion: null, projected: [] });
+  current.dailySats = 0;
+  expect(buildBurndown([pending!], pending!, 'current').projected.every(p => p.y === 100000)).toBe(true);
+  current.dailySats = 10000;
+  expect(buildBurndown([pending!], pending!, 'current').depletion).toBe(Date.parse(pending!.snapshot.asOf) + 10 * 86400000);
+});
+
+it('preserves archived balances and forecasts without borrowing later pending observations', async () => {
+  const rows = await records(), origin = rows[0]!, collected = rows[1]!;
+  const before = buildBurndown(rows, origin, 'current');
+  collected.collected = true;
+  collected.snapshot.composition.spendableSats = 50000;
+  collected.snapshot.composition.unconfirmedGtDustSats = 100000;
+  const chart = buildBurndown(rows, origin, 'current');
+  expect(chart.projected).toEqual(before.projected);
+  expect(chart.balance).toBe(origin.snapshot.composition.spendableSats);
+  expect(chart.actual.find(p => p.height === collected.snapshot.tip.height)?.y).toBe(150000);
+});
+
+it('retains long historical timelines without mistaking unchanged balances for missing samples', async () => {
+  const rows = await records();
+  rows.forEach((r, i) => { r.snapshot.asOf = new Date(Date.UTC(2026, 6, 1 + i * 30)).toISOString(); r.snapshot.composition.spendableSats = 100000; });
+  const chart = buildBurndown(rows, rows.at(-1)!, 'current');
+  expect(chart.actual[0]!.x).toBe(Date.parse(rows[0]!.snapshot.asOf));
+  expect(chart.actual[0]!.x).toBeLessThan(chart.from);
+  expect(chart.actual.some(p => p.y === null)).toBe(false);
+});

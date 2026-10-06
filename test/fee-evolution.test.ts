@@ -141,15 +141,19 @@ it('keeps runtime fee evidence append-only and the reader read-only after repeat
     await db.exec('CREATE ROLE monitor_app; CREATE ROLE monitor_read;');
     await db.exec(readFileSync('migrations/0001_init.sql', 'utf8'));
     await db.exec(readFileSync('migrations/0002_fee_observations.sql', 'utf8'));
+    await db.exec(readFileSync('migrations/0003_fee_research.sql', 'utf8'));
     await db.exec("INSERT INTO network_stamp(network) VALUES('mainnet')");
     for (let i = 0; i < 2; i++) await db.exec(readFileSync('ops/roles.sql', 'utf8'));
     await db.exec('SET ROLE monitor_app');
     await db.query("INSERT INTO fee_observations VALUES('mainnet',$1,now(),1,$2,'{}')", [randomUUID(), 'a'.repeat(64)]);
     await expect(db.exec('UPDATE fee_observations SET data=\'{}\'')).rejects.toThrow(/permission denied/);
     await expect(db.exec('DELETE FROM fee_observations')).rejects.toThrow(/permission denied/);
+    await expect(db.exec('DELETE FROM time_machine_samples')).rejects.toThrow(/permission denied/);
     await db.query("INSERT INTO runs(run_id,network,status) VALUES($1,'mainnet','running')", [randomUUID()]);
     await db.exec('RESET ROLE; SET ROLE monitor_read');
     expect((await db.query('SELECT * FROM fee_observations')).rows).toHaveLength(1);
+    expect((await db.query('SELECT * FROM fee_research')).rows).toHaveLength(0);
+    await expect(db.exec("INSERT INTO fee_research(network) VALUES('mainnet')")).rejects.toThrow(/permission denied/);
     await expect(db.query("INSERT INTO fee_observations VALUES('mainnet',$1,now(),1,$2,'{}')", [randomUUID(), 'b'.repeat(64)])).rejects.toThrow(/permission denied/);
   } finally { await db.close(); }
 });

@@ -4,7 +4,7 @@ import type { OutcomeEvent } from './outcomes.js';
 export const MODEL_IDS = ['current', 'mean7', 'mean30'] as const;
 export type ModelId = typeof MODEL_IDS[number];
 export interface Forecast { model: ModelId; dailySats: number | null; reason: string; sampleSize: number }
-export interface ReplayRecord { snapshot: Snapshot; forecasts: Forecast[]; trainingRef: string }
+export interface ReplayRecord { snapshot: Snapshot; forecasts: Forecast[]; trainingRef: string; collected?: boolean }
 export interface Evaluation {
   wallet: string; height: number; time: number; horizonDays: number; model: ModelId;
   predictedSats: number | null; actualSats: number | null; errorSats: number | null; reason: string | null;

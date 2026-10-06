@@ -1,5 +1,56 @@
 # Release verification — updated 2026-10-06
 
+## Native chart navigation — 2.6.1 (October 6)
+
+Replaced the funding timeline's Chart.js zoom integration and custom canvas annotations with **Apache ECharts 6.1.0**. The actual renderer is ECharts SVG, with native time axes, overview `dataZoom` slider, draggable handles/window, inside zoom/pan, restore control, mark lines/areas and scatter transaction rows. Chart.js remains in the separate accuracy and seasonal-fee charts. No wallet calculations, transaction facts or backtest evidence changed.
+
+`pnpm check` passed **219 tests across 29 files**, including an ECharts integration test that dispatches native zoom/restore actions across both panes without changing source series. **39 HTTP smoke checks** passed. Browser checks verified zooming from late September back into August with the native slider, panning into July, reset, preserved range across several live polls and ECharts transaction clicks reaching the matching inspector. No console warnings/errors were recorded. The preview screenshot is retained at ignored `.local/releases/v2.6.1/echarts-preview.jpg`.
+
+Mainnet `dpl_464ZDCzPqUBax9kaeQ59MnBjMWmm` and Signet `dpl_S95tTcB2EWpUWcALGdsq2FaPRsCQ` are READY. Mainnet verification at **14:55 UTC** matched the local HTML exactly and served **1,059 transaction summaries**, with **12 same-block transaction median comparisons**, in about **1.17 MB**. Current wallet samples matched `/api/status`. Detailed network checks are saved in ignored `.local/releases/v2.6.1/`.
+
+Implementation SHA-256: `2b1ca7e31491b27954cc8f639d685582a18a103b242d0c895dd12bb6c6fb6cc8`. The Chart.js zoom plugin is removed from dependencies. ECharts, its bundled subcomponent and ZRender license/notice text are included in the generated reports. No migration was required. Deployment uses the verified working tree; the existing signing limitation remains and no new signed commit/tag was created.
+
+## Timeline and transaction inspection — 2.6.0 (October 6)
+
+Mainnet `dpl_5JYk2Qoi25jXkoK7ALvPzsd3sqe2` and Signet `dpl_Dh1Setdu2U9onv73szwnf7mtNsuo` are READY. Both serve the updated mainnet time machine with Chart.js zoom/pan, range presets, clickable confirmed-transaction markers and an inspector with per-transaction vsize, fees, fee rates, package totals and historical fee comparisons. The original archived replay and wallet backtests remain unchanged. A separate 92 KB compressed supplement contains 1,285 validated archive transaction summaries.
+
+`pnpm check` passed **217 tests in 28 files**, type checking, configuration checks, lint and dependency boundaries. **39 HTTP smoke checks** and **20 production endpoint checks** passed. Production HTML matched the local build exactly on each network. The mainnet response at **14:38 UTC** contained **1,057 stored transaction summaries**, **10 exact same-block median comparisons**, and **254 wallet observations** in about **1.17 MB**. Other transactions use a labelled coarse historical benchmark or an unknown assessment; integer-quantized zero does not imply free confirmation. A premium is a hindsight comparison, not proof of avoidable fees.
+
+Browser verification covered 7-/30-day/full-history ranges, zoom in/out, marker clicks, overlapping commit/reveal selection, funding filters, related transaction links, and current observations. No console errors or warnings were recorded. The inspector displayed a stored 172-vB commit paying 1,063 sats and its separate 133-vB reveal paying 878 sats; the complete package totals 305 vB and 1,941 sats. Tests guard against rounding the combined weight (which would incorrectly give 304 vB), provider calls on reads, private raw fields leaking into summaries, future/mismatched fee benchmarks, and fabricated gaps in unchanged historical balances.
+
+Evidence and a preview screenshot are in ignored `.local/releases/v2.6.0/`. Implementation SHA-256: `0660130701eba184fd8cf28076261dedc340776c1da583da03085a13cdb22e97`. No migration was needed. Deployment uses the verified working tree; the earlier signing limitation remains and no new signed commit/tag was created.
+
+## Funding balance planning — 2.5.2 (October 6)
+
+Mainnet `dpl_GF3odRHy1p1tereqagJNXCUPkqb3` and Signet `dpl_7xHjkAo4KwkP91LKRekpKExsofHm` are READY with the simplified single balance line. The chart and rendered report include recorded pending funds in the planning balance and divide by the same stored daily spending rate. This assumes normal confirmation; it does not alter sequencer input selection, stored confirmed-only estimates or historical backtests. The inventory retains the confirmation breakdown. Small-output exclusions and missing historical mempool evidence are preserved.
+
+`pnpm check` passed **211 tests in 27 files**, types, configuration checks, lint and import boundaries. **39 HTTP smoke checks** passed. Tests cover invariant balance/runway across confirmation, unavailable spending rates, stale report data and preservation of historical forecasts. Local and production browser checks at block **970,167** showed **87,609 sats / 4.7 days**, including **86,975 pending sats**, replacing the temporary 634-sat dip. The extra confirmed/reference line is gone; no console warnings/errors were recorded.
+
+Production verification checked the exact served dashboard against the local build, network/version identity, current data and authenticated writes. Mainnet checked at **13:59 UTC** had the fee study automatically refreshed at **13:55:54 UTC**. Evidence is in ignored `.local/releases/v2.5.2/`. Implementation SHA-256: `93f0dfb63f82bdd901cb2f924ea987d7730a4ad14de818584c50fff4c0ce2c40`. Deployment uses the reviewed working tree; the earlier signing limitation remains and no signed commit/tag was created. No migration was required.
+
+## Confirmed funding and pending funds — 2.5.1 (October 6)
+
+Reviewed the operator-reported deployed sequencer commit `d24ebe2396eecd04201f3d1a4de39fdf8a4827ef`, all 40 Bitcoin I/O Rust source files and the locked `bitcoind-async-client` 0.10.8 implementation. New commits use at least one confirmation and outputs above 546 sats. Qualifying reveals can spend an unconfirmed parent; no automatic CPFP fee-bumping path was found in this revision. Newer upstream's RBF replacement implementation is not attributed to this deployed release. [Source evidence and limitations](model-divergences.md#cpfp-and-funding-policy--source-review-october-6-2026).
+
+The final working tree is READY on mainnet `dpl_6D8ZkYVbjB9bXoMMtjy387tBRVaU` and Signet `dpl_22uBkZMi6CpjFHfPkBE5vpSioM65`. Metadata identifies version `2.5.1`, `verified-working-tree`, implementation SHA-256 `2abb9b1ed9a365baf24d71611147f53b3ef9ac55c34a28424edcadb3d39ce048`. The previously recorded Git signing limitation remains; no signed release commit or tag was created. No migration or sequencer transaction was needed.
+
+- `pnpm check`: **210 tests in 27 files**, types, config, lint and dependency boundaries passed. Regression cases cover pending funds without confirmed funds, confirmation transitions, missing historical mempool evidence, unchanged forecasts and stale observations.
+- `pnpm smoke`: **39 HTTP checks** passed. Public deployment evidence, exact dashboard hashes and endpoint checks are saved under ignored `.local/releases/v2.5.1/`.
+- Browser verification at block **970,167**, October 6 **11:45 UTC**, showed **634 confirmed sats + 86,975 pending sats**, the pending reference line and **<0.1 days** confirmed-only runway. No console errors/warnings were recorded. The dashboard was returned to the latest observation after verification.
+- The public fee study had automatically refreshed at **12:55:54 UTC** (origin **12:55:52 UTC**), after the earlier manual initialization. Mainnet verification at **13:49 UTC** found **252 collected observations** and exact agreement with stored status for both wallets. Historical mempool balances remain unknown; the archived evidence and wallet backtests are unchanged.
+
+## Continuously updated time machine — 2.5.0 (October 6)
+
+The reviewed working tree was deployed to the existing mainnet and Signet Vercel projects. Git signing timed out and was cancelled; the changes remain staged, with no new signed commit or release tag. Vercel deployment metadata records `releaseVersion=2.5.0`, `releaseState=verified-working-tree`, and implementation SHA-256 `9ed47ed40f16b3143828eebf90c0804c2d9abafe5863824bf7c8b35d3d5d8ffa`. Deployment IDs: mainnet `dpl_4q9YvsiAZjLq8fgft1YA6K9Eryi3`; Signet `dpl_EK4MQ5EXrZoVagdXtD47JqAJWo8s`. Both completed READY. Migration 3 and runtime/read-role grants succeeded on both databases after compatible code deployment.
+
+- `pnpm check`: **208 tests in 27 files**, strict types, configuration validation, lint and import boundaries passed. New cases cover exact stored wallet forecasts, read-only/provider-free access, deduplication, stale/future timestamps, historical forecast causality, chart gaps, independent leases, retained daily history, refresh-failure preservation, authentication and network separation. Permission checks include the new tables.
+- `pnpm smoke`: **39 HTTP checks** passed (26 mainnet / 13 Signet demo). Production verification passed **20 checks** across both origins, including exact served dashboard hashes, shared styles, version/network identity, no-store reads, denied unauthenticated writes, Signet isolation and public mainnet CORS.
+- Initial authenticated research refresh succeeded at **11:04:05 UTC**, using **5,771 buckets** through **11:00 UTC**. Saved timestamp: **11:04:06 UTC**. The public response was **648,961 bytes**, with **248 collected samples**, a fresh seasonal curve and no refresh error.
+- At matching observation times, the time machine and `/api/status` agreed exactly: EE **89,216 spendable sats / 4.7497924298 days** at **11:00:20 UTC**; OL **54,853 sats / 9.1084485480 days** at **11:00:45 UTC**. These are timestamped observations, not permanent expected balances.
+- Browser verification showed current EE/OL figures, the original October 2 OL balance/runway when navigating backward, hidden stale fee curves before initialization, the fresh study after initialization, the common monitor design, and no browser warnings/errors.
+- Vercel's production project API confirmed enabled cron definitions for `/api/collect` every 15 minutes and `/api/research-refresh` at minute 55 hourly on the verified deployment. The initial fee refresh was manually triggered; the next scheduled hourly execution has not yet been observed. Current estimates expire if updates stop. Runtime evidence is in ignored `.local/releases/v2.5.0/`.
+
+
 ## Hosted fee analysis time machine — v2.4.3
 
 Commit `a05ddf1c7fd92463a2df2269de2c5eeb2972d72f`, tagged locally `v2.4.3` on `codex/host-fee-time-machine`, is Ready on both existing Vercel production projects:

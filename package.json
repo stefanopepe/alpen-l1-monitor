@@ -1,6 +1,6 @@
 {
   "name": "bridge-wallet-monitor",
-  "version": "2.4.4",
+  "version": "2.6.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -31,6 +31,7 @@
     "@vercel/functions": "3.9.9",
     "bootstrap": "5.3.8",
     "chart.js": "4.5.1",
+    "echarts": "6.1.0",
     "pg": "8.23.0",
     "zod": "4.6.5"
   },

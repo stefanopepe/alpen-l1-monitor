@@ -42,6 +42,7 @@ h2{font-size:1.25rem;margin:0 0 .75rem}h3{font-size:1rem}
 .metric{background:white;border:1px solid var(--monitor-line);border-radius:0;padding:1rem}
 .chart-legend,.chart-caption{font-size:13px;color:var(--monitor-muted)}
 .legend-line.predicted{border-color:var(--monitor-accent)}
+.stat #runway{font-size:22px}
 .table{--bs-table-color:var(--monitor-ink);font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
 .table th{font-size:12px;letter-spacing:normal;color:var(--monitor-muted);background:var(--monitor-bg)}
 .table td,.table th{padding:.65rem .75rem}
@@ -60,3 +61,5 @@ footer{font-size:13px;color:var(--monitor-muted)}
   .stat span,.metric span,.metric small{font-size:12px}
   .section-nav{gap:.75rem 1rem}
 }
+
+.stale-data{color:#9a3412;font-weight:600}

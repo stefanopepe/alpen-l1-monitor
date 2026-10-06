@@ -12,6 +12,7 @@ import { type ChainArchive, canonical, digest, directoryBytes, writeJson } from 
 import { type ReplayRecord, forecasts, evaluate } from './evaluate.js';
 import { deriveOutcomes } from './outcomes.js';
 import { implementationProvenance } from './provenance.js';
+import { archiveTransactions } from './transactions.js';
 export interface ReplayOptions { from?: string; to?: string; step?: number; config?: ValidatedConfig; observations?: FeeContext[]; progress?: (s: string) => void }
 export async function replayAt(index: ArchiveIndex, v: ValidatedConfig, height: number, walletId: string) {
   const wallet = v.config.wallets.find(w => w.id === walletId);
@@ -73,6 +74,7 @@ export async function runReplay(archive: ChainArchive, out: string, options: Rep
   writeJson(join(out, 'training.json'), trainingSets);
   writeJson(join(out, 'outcomes.json'), { events, evaluations: evaluation.evaluations, exhaustion: evaluation.exhaustion });
   writeJson(join(out, 'scores.json'), evaluation.scores);
+  writeJson(join(out, 'transactions.json'), archiveTransactions(archive));
   const manifest = { schemaVersion: 1, archiveDigest: archive.digest, network: archive.network, provider: archive.provider,
     configSha256: v.sha256, config: v.config, monitorVersion: MONITOR_VERSION, fromHeight: from, toHeight: to, step,
     dataThroughHeight: archive.anchor.height, clock: 'running-max block header time', confirmedOnly: true,
