@@ -1,5 +1,18 @@
 # Release verification — updated 2026-10-06
 
+## Hosted fee analysis time machine — v2.4.3
+
+Commit `a05ddf1c7fd92463a2df2269de2c5eeb2972d72f`, tagged locally `v2.4.3` on `codex/host-fee-time-machine`, is Ready on both existing Vercel production projects:
+
+- Mainnet: `dpl_7h2mDo9rGZcaEexzLXKwCoduZ6Vp`, [dashboard](https://ee-ol-wallet-monitor.vercel.app/time-machine.html).
+- Signet: `dpl_CStjFt39g5fFNcLUspjsmCYAUCHe`, [dashboard](https://ee-ol-wallet-monitor-signet.vercel.app/time-machine.html).
+
+Operator controls links to the combined wallet replay and seasonal fee analysis. Both deployments intentionally serve the same saved **mainnet** report, labelled with wallet history through October 2, 2026 at 07:11:32 UTC and fee-study origin at 11:13:08 UTC. Publishing preserves the existing research results; it does not refresh or recompute them. The report includes a return link and an explicit saved-snapshot notice.
+
+Node 24.19.0 validation passed types, configuration/address checks, lint, dependency boundaries, **203 tests**, and **30 HTTP smoke checks** (21 mainnet / 9 Signet). Browser checks confirmed the operator link, wallet switching, block navigation, fee-view and horizon selectors, and the rendered production report. A credential scan of the HTML and decompressed embedded data found none of the ten configured secret values. The upload list excludes `.local` archives and environment files.
+
+All eight public endpoint checks passed on each production alias, including unauthenticated 200 responses for the dashboard and existing read endpoints, and 401 responses for collection/refresh. API headers identify version `2.4.3` and the correct network without preview mode. Both hosted dashboards exactly match the reviewed snapshot, SHA-256 `2333d50b3b5bce60870a43f3d58a0d52423cfd267a48c4d4533ebf1eadb76c95`. Verification artifacts are under ignored `.local/releases/v2.4.3/`. No database migration or collector change was needed. The release branch and tag remain local; no GitHub push or release publication was performed for this deployment.
+
 ## Transaction-fee release — v2.4.2
 
 Commit `2df8c806d81ca87cdff6f12438f4344f2b54f32b` is committed on local `main` and tagged locally `v2.4.2`. The same commit is deployed and Ready on both existing Vercel production projects:

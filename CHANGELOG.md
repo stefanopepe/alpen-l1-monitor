@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.4 — consistent time machine design (2026-10-06)
+
+- Match the hosted time machine to the monitor's heading, network banner, system typography, navy controls and plain bordered panels. Share the monitor stylesheet across both pages and retain the saved analysis and interactive controls.
+
 ## 2.4.3 — hosted fee analysis time machine (2026-10-06)
 
 - Link the combined fee analysis and wallet time machine from Operator controls on both deployments.

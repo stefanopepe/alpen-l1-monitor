@@ -46,7 +46,8 @@ try {
     ['/api/metrics', 'GET', '', 503], ['/api/collect', 'GET', cron, 503],
     ['/api/refresh', 'POST', cron, 503],
   ] as const;
-  for (const [path, method, token, expected] of cases) {
+  const stylesheets = ['/monitor.css', '/time-machine.css'].map(path => [path, 'GET', '', 200] as const);
+  for (const [path, method, token, expected] of [...cases, ...stylesheets]) {
     const response = await fetch(`${origin}${path}`, { method, headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(5000) });
     if (response.status !== expected) throw new Error(`E_SMOKE_STATUS_${response.status}`);
     if (path.startsWith('/api/') && !response.headers.get('cache-control')?.includes('no-store')) throw new Error('E_SMOKE_CACHE');
@@ -54,11 +55,12 @@ try {
     if (body.includes(wrong) || body.includes(cron)) throw new Error('E_SMOKE_SECRET');
     if (path === '/' && !body.includes('href="/time-machine.html"')) throw new Error('E_SMOKE_TIME_MACHINE_LINK');
     if (path === '/time-machine.html' && (!body.includes('Bitcoin mainnet · Saved analysis') || !body.includes('id="network-fees"'))) throw new Error('E_SMOKE_TIME_MACHINE_REPORT');
+    if ((path === '/' || path === '/time-machine.html') && !body.includes('href="/monitor.css"')) throw new Error('E_SMOKE_SHARED_STYLE');
     if ((path === '/' || path === '/consolidation.html') && !body.includes(`data-theme="${testnet ? 'testnet' : 'mainnet'}"`)) throw new Error('E_SMOKE_THEME');
     if (testnet && path.startsWith('/api/status') && response.headers.get('x-monitor-network') !== 'signet') throw new Error('E_SMOKE_NETWORK');
     if (testnet && path === '/api/status?format=text' && !body.includes('DEMO: synthetic testnet wallets')) throw new Error('E_SMOKE_DEMO');
   }
-  console.log(`HTTP smoke passed (${testnet ? 'Signet demo' : 'mainnet'}): ${cases.length} checks through pnpm dev; ephemeral tokens were not logged.`);
+  console.log(`HTTP smoke passed (${testnet ? 'Signet demo' : 'mainnet'}): ${cases.length + stylesheets.length} checks through pnpm dev; ephemeral tokens were not logged.`);
 } catch { console.error('E_HTTP_SMOKE'); process.exitCode = 1; }
 finally {
   stop('SIGTERM');
