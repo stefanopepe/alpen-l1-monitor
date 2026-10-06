@@ -1,5 +1,9 @@
 import type { FeeForecastSnapshot, FeeStudy } from '../schema.js';
 
+export function currentFeeFresh(study: FeeStudy, now = Date.now() / 1000): boolean {
+  return now >= study.asOf && now - study.asOf <= 2 * 3600 && now >= study.coverage.end && now - study.coverage.end <= 3 * 3600;
+}
+
 // Only saved, causal forecasts can be joined. Never show a later study's current
 // curve under an earlier block label or recalibrate it using hindsight scores.
 export function forecastAt(study: FeeStudy, time: number): FeeForecastSnapshot | null {

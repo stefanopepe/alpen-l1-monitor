@@ -3,13 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Alpen sequencer monitor</title>
-<style>
-body{font:16px system-ui;max-width:74rem;margin:3rem auto;padding:0 1.5rem;color:#1b2533;background:#f6f8fa}
-h1{font-size:2rem}input,button{font:inherit;padding:.65rem;border:1px solid #a4afbc;border-radius:.3rem}
-input{width:min(65%,24rem)}button{cursor:pointer;background:#173c55;color:white}button:disabled{opacity:.6;cursor:wait}
-pre{white-space:pre-wrap;overflow-wrap:anywhere;padding:1.5rem;background:white;border:1px solid #d5dde5;line-height:1.65;font-size:13px}
-small{color:#596b7b}label{display:block;margin-top:1rem}details{margin-top:1.5rem}summary{cursor:pointer}
-</style>
+<link rel="stylesheet" href="/monitor.css">
 <link rel="stylesheet" href="/network.css">
 <!-- NETWORK_BANNER -->
 <h1>Alpen sequencer monitor</h1>
@@ -21,6 +15,7 @@ small{color:#596b7b}label{display:block;margin-top:1rem}details{margin-top:1.5re
 <details>
   <summary>Operator controls</summary>
   <p><a href="/consolidation.html">Consolidate stranded outputs</a></p>
+  <p><a href="/time-machine.html">Fee analysis time machine dashboard</a><br><small>Saved Bitcoin mainnet analysis · Wallet history, forecast comparisons and seasonal fees.</small></p>
   <div id="collection-controls">
   <label for="write">Refresh token</label>
   <input id="write" type="password" autocomplete="off" placeholder="Cron secret">

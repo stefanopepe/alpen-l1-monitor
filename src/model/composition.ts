@@ -1,6 +1,8 @@
 import type { Composition, Utxo } from '../types.js';
 export const DUST_LIMIT_SATS = 546;
 export const SELECTOR_MODEL_VERSION = 1;
+/** Planning balance assumes pending outputs confirm normally; not immediate input eligibility. */
+export function fundingBalance(c: Composition): number { return c.spendableSats + c.unconfirmedGtDustSats; }
 export function commitCandidateFilter(u: Utxo): boolean {
   return u.valueSats > DUST_LIMIT_SATS && u.confirmed && (u.scriptType === 'p2wpkh' || u.scriptType === 'p2tr');
 }

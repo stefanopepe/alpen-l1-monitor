@@ -13,3 +13,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO monitor_read
 -- to these two roles and the migrator. Substitute the actual database identifier.
 -- Fee evidence is append-only for the runtime; only the schema owner may manage it.
 REVOKE UPDATE,DELETE ON fee_observations FROM monitor_app;
+
+-- Daily time-machine evidence is immutable to the runtime once copied.
+REVOKE UPDATE,DELETE ON time_machine_samples FROM monitor_app;

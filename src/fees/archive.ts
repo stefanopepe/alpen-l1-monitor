@@ -55,11 +55,12 @@ export function sealFeeArchive(dir: string, body: Omit<FeeArchive, 'digest'>): F
   writeJson(join(dir, 'seals', archive.digest + '.json'), archive);
   writeJson(join(dir, 'archive.json'), archive); return archive;
 }
-export async function fetchFeeHistory(dir: string, options: { fetcher?: typeof fetch; now?: () => Date; progress?: (s: string) => void; pause?: (ms: number) => Promise<void> } = {}) {
+type CaptureOptions = { fetcher?: typeof fetch; now?: () => Date; progress?: (s: string) => void; pause?: (ms: number) => Promise<void> };
+export async function captureFeeHistory(prior: FeeArchive | null, options: CaptureOptions = {}) {
   const fetcher = options.fetcher ?? fetch, wait = options.pause ?? pause;
   const now = options.now ?? (() => new Date()), cutoff = now().getTime() / 1000;
   const responses: Record<string, string> = {}, series: FeeBucket[][] = [];
-  mkdirSync(join(dir, 'raw'), { recursive: true });
+  const rawResponses: Record<string, unknown> = {};
   for (const { period, seconds } of HISTORY_PERIODS) {
     const path = '/api/v1/mining/blocks/fee-rates/' + period;
     let raw: unknown;
@@ -79,17 +80,26 @@ export async function fetchFeeHistory(dir: string, options: { fetcher?: typeof f
       .filter(b => b.end <= cutoff).sort((a, b) => a.start - b.start);
     validateBuckets(rows);
     const hash = digest(raw); responses[path + '#' + hash] = hash;
-    if (!existsSync(join(dir, 'raw', hash + '.json'))) writeJson(join(dir, 'raw', hash + '.json'), raw);
+    rawResponses[hash] = raw;
     series.push(rows); options.progress?.(`${period}: ${rows.length} complete ${seconds / 3600}-hour buckets`);
     await wait(500);
   }
-  const prior = existsSync(join(dir, 'archive.json')) ? openFeeArchive(dir) : null;
   // First-observed values are immutable. Refinements cannot replace earlier evidence.
   const old = prior?.buckets.map(b => ({ ...b, availableAt: b.availableAt ?? Math.ceil(Date.parse(prior.capturedAt) / 1000) })) ?? [];
   const fresh = mergeResolutions(series).filter(b => !old.some(o => o.start < b.end && o.end > b.start));
-  return sealFeeArchive(dir, { schemaVersion: 1, network: 'mainnet', target: 'bucket_mean_block_median_sat_vb',
+  const body = { schemaVersion: 1 as const, network: 'mainnet' as const, target: 'bucket_mean_block_median_sat_vb' as const,
     capturedAt: new Date(Math.ceil(now().getTime() / 1000) * 1000).toISOString(), source: 'https://mempool.space/api/v1/mining/blocks/fee-rates/:period', integerQuantized: true,
-    buckets: [...old, ...fresh].sort((a, b) => a.start - b.start), responses: { ...prior?.responses, ...responses } });
+    buckets: [...old, ...fresh].sort((a, b) => a.start - b.start), responses: { ...prior?.responses, ...responses } };
+  return { archive: feeArchiveSchema.parse({ ...body, digest: digest(body) }), rawResponses };
+}
+
+export async function fetchFeeHistory(dir: string, options: CaptureOptions = {}) {
+  const prior = existsSync(join(dir, 'archive.json')) ? openFeeArchive(dir) : null;
+  const { archive, rawResponses } = await captureFeeHistory(prior, options);
+  mkdirSync(join(dir, 'raw'), { recursive: true });
+  for (const [hash, raw] of Object.entries(rawResponses)) if (!existsSync(join(dir, 'raw', hash + '.json'))) writeJson(join(dir, 'raw', hash + '.json'), raw);
+  const body = { schemaVersion: archive.schemaVersion, network: archive.network, target: archive.target, capturedAt: archive.capturedAt, source: archive.source, integerQuantized: archive.integerQuantized, buckets: archive.buckets, responses: archive.responses };
+  return sealFeeArchive(dir, body);
 }
 
 // Explicit import contract for better-resolution archives. Never infer sat/vB from

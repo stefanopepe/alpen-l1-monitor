@@ -2,6 +2,7 @@ import type { ReadModel } from './model.js';
 import type { PublicationAverage, Snapshot } from '../types.js';
 import { summarizeFees } from './fees.js';
 import { reportTime } from './time.js';
+import { fundingBalance } from '../model/composition.js';
 
 const number = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const rate = (value: number | null | undefined) => value == null ? 'Unavailable' : value > 0 && value < 0.01 ? '<0.01' : number(value);
@@ -59,11 +60,13 @@ export function renderReport(model: ReadModel, timezone = 'UTC'): string {
     const s = w.snapshot;
     if (!s) { lines.push('No successful collection yet.'); alerts.push(`${w.wallet.toUpperCase()}: no successful collection`); continue; }
     const c = s.composition, r = s.naiveRunway, next = s.publicationReport?.nextExpectedAt;
+    const funding = fundingBalance(c), days = r.drainPerDaySats && r.drainPerDaySats > 0 ? funding / r.drainPerDaySats : funding === 0 && r.days === 0 ? 0 : null;
     lines.push(row('Updated', reportTime(s.asOf, timezone)), row('Bitcoin block', number(s.tip.height)), '',
-      row('Total balance', `${number(c.balanceSats)} sats`), row('Spendable', `${number(c.spendableSats)} sats`),
-      row('Stranded', `${number(c.strandedSats)} sats`), row('Unconfirmed above dust', `${number(c.unconfirmedGtDustSats)} sats`),
+      row('Funding balance', `${number(funding)} sats · includes pending funds`),
+      row('Total balance', `${number(c.balanceSats)} sats`), row('Confirmed funding', `${number(c.spendableSats)} sats`),
+      row('Small outputs ≤546 sats', `${number(c.strandedSats)} sats · excluded by pinned model`), row('Pending above 546 sats', `${number(c.unconfirmedGtDustSats)} sats · awaiting confirmation`),
       row('Largest spendable UTXO', `${number(c.largestUtxoSats)} sats`), row('UTXOs', number(c.counts.total)),
-      row('Estimated runway', r.days === null ? `Unavailable · ${reason[r.reason] ?? r.reason}` : `${number(r.days)} days`),
+      row('Estimated runway', w.stale ? 'Unavailable · stale wallet data' : days === null ? `Unavailable · ${funding > 0 && r.reason === 'no_spendable_funds' ? 'spending estimate unavailable during pending transaction' : reason[r.reason] ?? r.reason}` : `${days > 0 && days < 0.01 ? '<0.01' : number(days)} days`),
       row('Settlement sample', number(r.sampleSize)), '', 'Next expected transaction · estimated confirmation',
       w.stale ? 'Unavailable · stale wallet data' : !s.publicationReport ? 'Unavailable · not collected' : next ? `${reportTime(next, timezone)}${next * 1000 < Date.parse(model.readAt) ? ' · OVERDUE' : ''}` : 'Unavailable · insufficient or incomplete history');
     if (c.unsupportedGtDustSats) alerts.push(`${w.wallet.toUpperCase()}: ${number(c.unsupportedGtDustSats)} sats in unsupported outputs`);
@@ -101,12 +104,18 @@ export function renderReport(model: ReadModel, timezone = 'UTC'): string {
     lines.push(row(`${w.wallet.toUpperCase()} wallet history`, !s ? 'Unavailable' : s.naiveRunway.historyComplete ? 'Complete' : 'Partial'),
       row(`${w.wallet.toUpperCase()} address discovery`, !s ? 'Unavailable' : s.ceilingHit.receive || s.ceilingHit.change ? 'Partial' : 'Complete'),
       row(`${w.wallet.toUpperCase()} publication data`, !ctx ? 'Not collected' : ('undecodedPublications' in ctx ? ctx.undecodedPublications : ctx.undecodedCheckpoints) ? 'Unreadable entries' : ctx.coverageComplete ? 'Readable' : 'Partial'),
-      row(`${w.wallet.toUpperCase()} deployed build`, s?.deployedBuildConfirmed ? 'Confirmed' : 'Unconfirmed'));
+      row(`${w.wallet.toUpperCase()} model/build match`, s?.deployedBuildConfirmed ? 'Confirmed' : 'Not verified'));
   }
   if (fees.stale) alerts.push('Current mempool recommendations unavailable');
   lines.push(row('Proofs / acceptance', 'Not verified'), row('EE state diff', 'Not verified'), '', row('Alerts', alerts.length ? '\n' + alerts.map(a => '• ' + a).join('\n') : 'None'), '', '',
     'CALCULATION BASIS', '', row('Runway', 'Observed settlement spending; network fee forecasts excluded'),
     row('Next transaction', 'Last observed commit + median commit interval; confirmation estimate'),
+    row('Funding balance', 'Confirmed funding plus pending outputs >546 sats'),
+    row('Runway assumption', 'Pending funds confirm normally before needed; no new funding'),
+    row('Pending funds', 'Included in planning balance; new commit inputs still require confirmation'),
+    row('Small outputs', 'Outputs ≤546 sats are excluded by the pinned funding model'),
+    ...(model.network === 'mainnet' ? [row('Reported deployed source', 'd24ebe2396eecd04201f3d1a4de39fdf8a4827ef · operator supplied'),
+      row('Reviewed funding policy', 'Confirmed inputs >546 sats; no automatic CPFP fee-bumping path found')] : []),
     row('Publication cost', 'Combined commit and reveal fees'), row('Publication fee rate', '4 × combined fees / combined weight'),
     row('Fee trends', 'Same wallet; average complete publication rate; preceding 24h / 7d; latest excluded'),
     row('Mempool averages', 'Time-weighted saved quotes; gaps over 30 minutes excluded'),

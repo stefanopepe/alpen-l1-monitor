@@ -60,7 +60,7 @@ export function scoreFees(evaluations: readonly FeeEvaluation[]): FeeScore[] {
   }
   return scores;
 }
-export function runFeeStudy(archive: FeeArchive, observations: readonly FeePressure[], config: FeeModelConfig, asOf: number, progress?: (s: string) => void, evaluationStart?: number): FeeStudy {
+export function runFeeStudy(archive: FeeArchive, observations: readonly FeePressure[], config: FeeModelConfig, asOf: number, progress?: (s: string) => void, evaluationStart?: number, sourceSha256?: string): FeeStudy {
   const cfg = feeModelConfigSchema.parse(config);
   validateBuckets(archive.buckets);
   if (!Number.isSafeInteger(asOf) || asOf <= archive.buckets[0]!.start) throw new Error('E_FEES_AS_OF');
@@ -129,7 +129,7 @@ export function runFeeStudy(archive: FeeArchive, observations: readonly FeePress
       weekdayWeekendRatio: annual.seasonalReason ? null : average(factors.slice(0, 5))! / average(factors.slice(5))! };
   });
   return { schemaVersion: 2, target: archive.target, network: archive.network, asOf, archiveDigest: archive.digest,
-    pressureDigest: digest(pressure), sourceSha256: implementationProvenance().sourceSha256, config: cfg,
+    pressureDigest: digest(pressure), sourceSha256: sourceSha256 ?? implementationProvenance().sourceSha256, config: cfg,
     coverage: { start: buckets[0]!.start, end: buckets.at(-1)!.end, buckets: buckets.length, integerQuantized: archive.integerQuantized,
       resolutions, pressureSnapshots: pressure.length, pressureStatus: forecasts.find(f => f.model === 'pressure')!.reason ?? 'available',
       seasonalTrainingBuckets: fit.trainingBuckets, seasonalTrainingDays: fit.trainingDays },

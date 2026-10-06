@@ -24,12 +24,23 @@
     },
     "api/metrics.ts": {
       "maxDuration": 30
+    },
+    "api/time-machine.ts": {
+      "maxDuration": 30
+    },
+    "api/research-refresh.ts": {
+      "maxDuration": 800,
+      "includeFiles": "config/**"
     }
   },
   "crons": [
     {
       "path": "/api/collect",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/research-refresh",
+      "schedule": "55 * * * *"
     }
   ],
   "git": {

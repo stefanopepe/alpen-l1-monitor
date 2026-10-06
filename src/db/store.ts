@@ -13,7 +13,7 @@ export class Store {
     const stamp = await this.pool.query('SELECT network FROM network_stamp');
     if (stamp.rows.length !== 1 || stamp.rows[0].network !== v.config.network) throw new Error('E_DB_NETWORK');
     const schema = await this.pool.query('SELECT max(version) AS version FROM schema_migrations');
-    if (![1, 2].includes(schema.rows[0].version)) throw new Error('E_DB_SCHEMA');
+    if (![1, 2, 3].includes(schema.rows[0].version)) throw new Error('E_DB_SCHEMA');
     const wallets = await this.pool.query('SELECT wallet, key_identity FROM wallets WHERE network=$1', [v.config.network]);
     if (wallets.rowCount !== v.wallets.size) throw new Error('E_DB_WALLETS');
     for (const [id, w] of v.wallets) if (!wallets.rows.some(row => row.wallet === id && row.key_identity === w.keyIdentity)) throw new Error('E_WALLET_IDENTITY_CHANGED');

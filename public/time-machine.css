@@ -1,0 +1,65 @@
+/* The hosted report shares the monitor shell; the portable archive stays intact. */
+:root{
+  --bs-body-font-family:system-ui;--bs-body-color:var(--monitor-ink);--bs-body-bg:var(--monitor-bg);
+  --bs-secondary-color:var(--monitor-muted);--bs-border-color:var(--monitor-line);
+  --ink:var(--monitor-ink);--accent:var(--monitor-accent);
+}
+.container-xxl{max-width:none;padding:0}
+main.container-xxl{padding-top:0!important}
+.monitor-header h1{margin:.67em 0;line-height:normal}
+.monitor-header p{margin:1em 0}
+.monitor-header a,.section-nav a{color:var(--monitor-accent);text-decoration:underline;font-weight:400}
+h2,h3{color:var(--monitor-ink);letter-spacing:normal;font-weight:600}
+h2{font-size:1.25rem;margin:0 0 .75rem}h3{font-size:1rem}
+.saved-report{font-size:13px;color:var(--monitor-muted);margin:1.5rem 0 1rem}
+.saved-report p{margin:.5rem 0 0}
+.archive-label{text-align:left;font-size:13px;color:var(--monitor-muted);margin:0 0 1.5rem;padding:0}
+.archive-label span,.archive-label strong,.archive-label small{display:inline;font-size:inherit;color:inherit;font-weight:400;letter-spacing:normal}
+.archive-label small{display:block}
+.section-nav{gap:.75rem 1.5rem;font-size:14px}
+.card{border:1px solid var(--monitor-line);border-radius:0;background:white;box-shadow:none}
+.card-body,.selection-card .card-body{padding:1.5rem}
+.eyebrow{display:none}
+.form-label{font-size:13px;font-weight:400;color:var(--monitor-muted);margin:0 0 .5rem}
+.form-control,.form-select{font:inherit;min-height:0;padding:.65rem;border-color:#a4afbc;border-radius:.3rem;color:var(--monitor-ink)}
+.form-select{padding-right:2.25rem}
+.form-control:focus,.form-select:focus{border-color:var(--monitor-accent);box-shadow:0 0 0 2px #173c5526}
+.wallet-description{font-size:13px;color:var(--monitor-muted)}
+.btn{font:inherit;padding:.65rem;min-height:0;border-radius:.3rem}
+.btn-outline-secondary,.btn-light{
+  --bs-btn-color:white;--bs-btn-bg:var(--monitor-accent);--bs-btn-border-color:var(--monitor-accent);
+  --bs-btn-hover-color:white;--bs-btn-hover-bg:#234f6b;--bs-btn-hover-border-color:#234f6b;
+  --bs-btn-active-color:white;--bs-btn-active-bg:#234f6b;--bs-btn-active-border-color:#234f6b;
+  --bs-btn-disabled-color:white;--bs-btn-disabled-bg:var(--monitor-accent);--bs-btn-disabled-border-color:var(--monitor-accent);
+}
+.help{color:var(--monitor-muted);border-color:#a4afbc;font-size:11px}
+.help:hover,.help:focus-visible{color:var(--monitor-accent);border-color:var(--monitor-accent);outline-color:#173c5555}
+.tooltip{--bs-tooltip-bg:var(--monitor-accent);--bs-tooltip-font-size:13px}
+.subtle-badge{background:var(--monitor-bg);color:var(--monitor-muted);font-size:12px;font-weight:400;border-radius:.3rem}
+.balance-stats,.stat,.detail-row{border-color:var(--monitor-line)}
+.stat span,.stat small,.metric span,.metric small{font-size:13px;color:var(--monitor-muted)}
+.stat strong,.metric strong,.stat #emptyDate{font:600 20px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:normal}
+.metric{background:white;border:1px solid var(--monitor-line);border-radius:0;padding:1rem}
+.chart-legend,.chart-caption{font-size:13px;color:var(--monitor-muted)}
+.legend-line.predicted{border-color:var(--monitor-accent)}
+.stat #runway{font-size:22px}
+.table{--bs-table-color:var(--monitor-ink);font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
+.table th{font-size:12px;letter-spacing:normal;color:var(--monitor-muted);background:var(--monitor-bg)}
+.table td,.table th{padding:.65rem .75rem}
+.table .secondary-line{font-size:12px;color:var(--monitor-muted)}
+.comparison-table tr.selected-model{background:#eaf0f5}
+.comparison-table tr.selected-model td:first-child{color:var(--monitor-accent)}
+.table .btn-link{color:var(--monitor-accent);font:inherit;text-decoration:underline}
+details{font-size:14px}summary{font-weight:400;color:var(--monitor-ink)}
+.summary-meta,.event-list .list-group-item,.event-list .event-date,.notes-list{font-size:13px;color:var(--monitor-muted)}
+.notes-card{background:white}
+pre{border-radius:0;max-height:320px;font-size:13px;line-height:1.65;background:white}
+footer{font-size:13px;color:var(--monitor-muted)}
+@media(max-width:575px){
+  .card-body,.selection-card .card-body{padding:1rem}
+  .stat strong,.metric strong,.stat #emptyDate{font-size:18px}
+  .stat span,.metric span,.metric small{font-size:12px}
+  .section-nav{gap:.75rem 1rem}
+}
+
+.stale-data{color:#9a3412;font-weight:600}
