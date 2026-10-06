@@ -6,8 +6,10 @@ const fmt = (n: number, digits = 0) => new Intl.NumberFormat('en', { maximumFrac
 const when = (n: number) => new Date(n * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 export function feeLabel(tx: TransactionSummary) {
   const assessment = assessFee(tx);
-  return assessment.status === 'unknown' ? 'Overpayment unknown' : assessment.status === 'above' ?
-    '+' + fmt(assessment.excessSats!) + ' sats vs benchmark' : 'At or below benchmark';
+  const reference = tx.benchmark?.kind === 'block_median' ? 'same-block median' : 'period benchmark';
+  return assessment.status === 'unknown' ? 'Fee comparison unavailable' :
+    (assessment.status === 'above' ? '+' + fmt(assessment.excessSats!) + ' sats vs ' : 'At or below ') +
+    reference + ' (' + fmt(tx.benchmark!.rate, 3) + ' sat/vB)';
 }
 export class TransactionInspector {
   private transactions: TransactionSummary[] = [];
@@ -45,20 +47,21 @@ export class TransactionInspector {
       option.textContent = labels[peer.kind] + ' · ' + peer.txid.slice(0, 12) + '… · ' + fmt(peer.feeSats) + ' sats'; choice.append(option);
     }
     choice.value = txid;
-    const assessment = assessFee(tx), stats = el('transactionStats'); stats.replaceChildren();
+    const assessment = assessFee(tx), b = tx.benchmark, stats = el('transactionStats'); stats.replaceChildren();
+    const reference = b?.kind === 'block_median' ? 'same-block median' : 'period benchmark';
     for (const [name, val, help] of [['Virtual size', fmt(tx.vsize) + ' vB', 'Weight ÷ 4, rounded up'], ['Fee paid', fmt(tx.feeSats) + ' sats', 'This transaction only'],
-      ['Fee rate', fmt(tx.feeRate, 3) + ' sat/vB', 'Fee ÷ virtual size'], ['Overpayment estimate', assessment.status === 'above' ? '+' + fmt(assessment.excessSats!) + ' sats' : assessment.status === 'at_or_below' ? 'No premium' : 'Unknown',
-        assessment.status === 'above' ? (assessment.premium === null ? '' : fmt(assessment.premium * 100, 1) + '% ') + 'above benchmark' : assessment.status === 'at_or_below' ? 'At or below the reference rate' : 'No precise comparison available']]) {
+      ['Fee rate', fmt(tx.feeRate, 3) + ' sat/vB', 'Fee ÷ virtual size'], [b ? 'Fee vs ' + reference : 'Fee comparison', assessment.status === 'above' ? '+' + fmt(assessment.excessSats!) + ' sats' : assessment.status === 'at_or_below' ? 'At or below' : 'Unavailable',
+        assessment.status === 'above' ? (assessment.premium === null ? '' : fmt(assessment.premium * 100, 1) + '% ') + 'above ' + fmt(b!.rate, 3) + ' sat/vB' : assessment.status === 'at_or_below' ? fmt(b!.rate, 3) + ' sat/vB reference rate' : 'No precise comparison available']]) {
       const stat = document.createElement('div'), label = document.createElement('span'), number = document.createElement('strong'), detail = document.createElement('small');
       label.textContent = name!; number.textContent = val!; detail.textContent = help!; stat.append(label, number, detail); stats.append(stat);
     }
-    const b = tx.benchmark;
     el('transactionBenchmark').textContent = b ?
-      (b.kind === 'block_median' ? 'Benchmark: median transaction fee rate in this same block, ' : 'Coarse benchmark: average block median across ' + when(b.start) + ' – ' + when(b.end) + ', ') +
+      (b.kind === 'block_median' ? 'Same-block median: ' : 'Same-block median not recorded. Period benchmark: average block median across ' + when(b.start) + ' – ' + when(b.end) + ', ') +
       fmt(b.rate, 3) + ' sat/vB.' + (b.integerQuantized ? ' Historical values are quantized to whole sat/vB; small differences are inconclusive.' : '') +
-      (assessment.benchmarkSats === null ? ' This rounded value cannot support an overpayment estimate.' : ' At this reference rate, the transaction would cost ' + fmt(assessment.benchmarkSats) + ' sats.') +
-      ' This is a hindsight comparison, not proof that a lower fee would have confirmed. Submission-time quotes and package dependencies can change the required fee.' :
-      'No contemporaneous fee benchmark was recorded. Actual size and fees are known; overpayment cannot be established. Today’s fee rate is never substituted.';
+      (assessment.benchmarkSats === null ? ' This rounded value cannot support a fee comparison.' : ' Fee at this reference rate: ' + fmt(assessment.benchmarkSats) + ' sats.') +
+      (b.kind === 'period_median' ? ' This period average does not establish how the transaction compares with others in its block.' : '') +
+      ' Being above a median does not establish overpayment or avoidable fees. Submission-time conditions and package dependencies affect the fee needed for confirmation.' :
+      'Same-block median and period benchmark not recorded. Actual size and fees are known; a fee comparison is unavailable. Today’s fee rate is never substituted.';
     const related = tx.packageId ? this.transactions.filter(t => t.packageId === tx.packageId) : [];
     el('transactionPackage').textContent = related.length ? (tx.packageComplete ? 'Complete commit/reveal package' : 'Known commit/reveal transactions (completeness unverified)') + ': ' +
       fmt(related.reduce((s, t) => s + t.feeSats, 0)) + ' sats · ' + fmt(related.reduce((s, t) => s + t.vsize, 0)) + ' vB · ' +
