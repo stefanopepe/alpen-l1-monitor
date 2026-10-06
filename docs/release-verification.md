@@ -1,4 +1,19 @@
-# Release verification — updated 2026-10-04
+# Release verification — updated 2026-10-06
+
+## Transaction-fee release — v2.4.2
+
+Commit `2df8c806d81ca87cdff6f12438f4344f2b54f32b` is committed on local `main` and tagged locally `v2.4.2`. The same commit is deployed and Ready on both existing Vercel production projects:
+
+- [Mainnet](https://ee-ol-wallet-monitor.vercel.app/): `dpl_4h13SorUSkFiMPLWNtauwfY8X5e1`.
+- [Testnet / Signet](https://ee-ol-wallet-monitor-signet.vercel.app/): `dpl_39tgH7ZDrTXzZBwPoxTXnt8j3U64`.
+
+Block fee medians now use actual non-coinbase transaction fees divided by rounded-up virtual sizes. The report excludes legacy/unavailable statistics from averages, labels partial 24-hour coverage and counts coinbase-only blocks separately. Corrected coverage accumulates through normal collection. No migration, new scheduler or transaction broadcast was performed.
+
+Release validation on Node 24.19.0 passed: **203 tests in 26 files**, type/configuration checks, ESLint and dependency boundaries, plus **20 mainnet / 8 Signet HTTP smoke checks**. The credential scan found zero configured credential values in 158 tracked source/documentation files. Previous direct source checks validated summaries for 15 mainnet and 15 Signet blocks.
+
+Both production aliases passed seven public endpoint checks each: home, consolidation, JSON/text status and metrics return 200; unauthenticated collect/refresh return 401. Version headers report `2.4.2`, network labels match and preview mode is absent. Mainnet refresh `38693b74-03db-432b-b06e-3a71f2a116ad` successfully updated EE and OL. Signet's initial refresh correctly skipped while an earlier scheduled collection held the lease; after that run completed, refresh `37bf7c3c-752d-4c9b-bc0e-162772e7d3e8` successfully updated both wallets. Fresh corrected observations include 15 mainnet fee samples and 13 Signet fee samples plus two coinbase-only blocks; older unverified observations remain visibly excluded.
+
+**GitHub publication remains blocked.** SSH reads succeeded, but push signing was refused by the hardware key, including with an attached terminal. The existing HTTPS credential returned HTTP 403 on the atomic main/tag push. Remote `main` therefore remains at `b7bd05a`; the local merge history, release commit and tag have not been published, and no GitHub release was created. Release notes, refresh results and public verification artifacts are saved under ignored `.local/releases/v2.4.2/`. Vercel deployment is complete independently of GitHub publishing.
 
 ## Final report release — v2.4.1
 
