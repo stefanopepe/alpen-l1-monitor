@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.3 — hosted fee analysis time machine (2026-10-06)
+
+- Link the combined fee analysis and wallet time machine from Operator controls on both deployments.
+- Publish the saved mainnet dashboard at `/time-machine.html`, preserving its wallet slider, forecast comparisons and seasonal fee analysis. Show the wallet and fee-study timestamps, a saved-snapshot label and a return link.
+- Bundle the selected report with the application so subsequent Vercel builds retain it. No database migration or collector change is required.
+
 ## 2.4.2 — transaction-based block fees (2026-10-05)
 
 - Calculate each block's median from actual non-coinbase transaction fees divided by `ceil(vsize)`, preserving fractional sat/vB. Do not use mempool's capacity-based or preliminary integer-valued `medianFee` for the report.

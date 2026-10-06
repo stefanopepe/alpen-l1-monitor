@@ -30,12 +30,12 @@ try {
     });
   });
   const cases = testnet ? [
-    ['/', 'GET', '', 200], ['/consolidation.html', 'GET', '', 200], ['/network.css', 'GET', '', 200],
+    ['/', 'GET', '', 200], ['/consolidation.html', 'GET', '', 200], ['/network.css', 'GET', '', 200], ['/time-machine.html', 'GET', '', 200],
     ['/api/status', 'GET', '', 200], ['/api/status?format=text', 'GET', '', 200],
     ['/api/consolidation?wallet=ee', 'GET', '', 200],
     ['/api/collect', 'GET', cron, 403], ['/api/refresh', 'POST', cron, 403],
   ] as const : [
-    ['/', 'GET', '', 200], ['/consolidation.html', 'GET', '', 200], ['/network.css', 'GET', '', 200], ['/missing', 'GET', '', 404],
+    ['/', 'GET', '', 200], ['/consolidation.html', 'GET', '', 200], ['/network.css', 'GET', '', 200], ['/time-machine.html', 'GET', '', 200], ['/missing', 'GET', '', 404],
     ['/api/status', 'GET', '', 503], ['/api/status', 'GET', cron, 503],
     ['/api/metrics', 'GET', cron, 503], ['/api/collect', 'GET', wrong, 401],
     ['/api/refresh', 'POST', '', 401], ['/api/refresh', 'POST', wrong, 401],
@@ -52,6 +52,8 @@ try {
     if (path.startsWith('/api/') && !response.headers.get('cache-control')?.includes('no-store')) throw new Error('E_SMOKE_CACHE');
     const body = await response.text();
     if (body.includes(wrong) || body.includes(cron)) throw new Error('E_SMOKE_SECRET');
+    if (path === '/' && !body.includes('href="/time-machine.html"')) throw new Error('E_SMOKE_TIME_MACHINE_LINK');
+    if (path === '/time-machine.html' && (!body.includes('Bitcoin mainnet · Saved analysis') || !body.includes('id="network-fees"'))) throw new Error('E_SMOKE_TIME_MACHINE_REPORT');
     if ((path === '/' || path === '/consolidation.html') && !body.includes(`data-theme="${testnet ? 'testnet' : 'mainnet'}"`)) throw new Error('E_SMOKE_THEME');
     if (testnet && path.startsWith('/api/status') && response.headers.get('x-monitor-network') !== 'signet') throw new Error('E_SMOKE_NETWORK');
     if (testnet && path === '/api/status?format=text' && !body.includes('DEMO: synthetic testnet wallets')) throw new Error('E_SMOKE_DEMO');

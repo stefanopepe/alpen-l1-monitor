@@ -69,6 +69,8 @@ pnpm replay report --out .local/replay/audit-mainnet
 
 Open `.local/replay/audit-mainnet/report.html` in a current browser. Fetch uses authenticated Alpen, respects request pacing, resumes interrupted work and extends completed archives to a newer finalized block. Refresh combines fetch, replay and report generation; earlier seals remain reproducible by digest. The report opens at the latest captured balance and displays funding amounts. It is a saved audit, updated by the CLI; the live collector continues its existing 15-minute schedule. Run and report are offline and need no database credentials. Defaults are both wallets, the latest 90 days after a 30-day warm-up, and every block. All local evidence is ignored by Git.
 
+Operator controls links to the hosted [fee analysis time machine](https://ee-ol-wallet-monitor.vercel.app/time-machine.html). Both deployments serve the same explicitly labelled **saved mainnet analysis**, with wallet and fee-study capture dates. The snapshot is bundled as `reports/mainnet-time-machine.html.gz` and expanded during the build; it needs no database or local archive on Vercel. To replace it after regenerating the combined report, run `pnpm replay:publish .local/replay/audit-mainnet/report.html`, review the snapshot, then commit and deploy a new release. Publishing does not refresh or recompute its underlying data.
+
 The first real archive contains 1,266 transactions and 17,340 block headers in **19.8 MB**. A full 25,906-snapshot audit occupies about **92 MB**, including the portable HTML report. See the [command guide, methodology, limitations and measured findings](docs/time-machine.md).
 
 ## Seasonal fee experiment
