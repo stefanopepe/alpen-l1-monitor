@@ -15,6 +15,7 @@ import { buildBurndown, type Burndown } from './burndown.js';
 import { renderFeeStudy } from '../../fees/report/view.js';
 import type { FeeStudy } from '../../fees/schema.js';
 import { mergeCollected, walletFresh, type LiveTimeMachine } from './live.js';
+import { LivePoller } from './poll.js';
 
 interface ReportData {
   transactions?: TransactionSummary[];
@@ -48,6 +49,7 @@ const liveEndpoint = document.body.dataset.liveEndpoint;
 let archiveRecords: ReplayRecord[] = [], archiveStudy: FeeStudy | undefined;
 let staleAfterSeconds = 3300, loadingLive = false, liveReadAt: string | null = null;
 let liveError = false, studyAsOf = 0;
+let liveEtag: string | null = null;
 let archiveTransactions: TransactionSummary[] = [], inspector: TransactionInspector;
 const walletTransactions = () => (data.transactions ?? []).filter(t => t.wallet === value('wallet'));
 function rangeChanged(range: TimelineRange) {
@@ -230,10 +232,13 @@ async function refreshLive() {
   if (!liveEndpoint || loadingLive) return;
   loadingLive = true;
   try {
-    const response = await fetch(liveEndpoint, { cache: 'no-store', credentials: 'omit', signal: AbortSignal.timeout(25000) });
+    const response = await fetch(liveEndpoint, { cache: 'no-cache', credentials: 'omit', signal: AbortSignal.timeout(25000),
+      headers: liveEtag ? { 'If-None-Match': liveEtag } : {} });
+    if (response.status === 304) { liveError = false; liveReadAt = new Date().toISOString(); renderBlock(); return; }
     if (!response.ok) throw new Error('Live data unavailable');
     const update = await response.json() as LiveTimeMachine;
     if (update.network !== 'mainnet' || !update.records?.length || !Number.isFinite(update.staleAfterSeconds) || !Number.isFinite(Date.parse(update.readAt))) throw new Error('Invalid live data');
+    liveEtag = response.headers.get('etag');
     const followLatest = position === rows.length - 1;
     data.records = mergeCollected(archiveRecords, update.records);
     const mergedTransactions = new Map(archiveTransactions.map(t => [t.wallet + ':' + t.txid, t]));
@@ -250,7 +255,7 @@ async function refreshLive() {
     }
     text('researchStatus', update.researchError ? 'The last fee study refresh failed. Current fee estimates expire after two hours.' : update.researchUpdatedAt ? 'Fee study last refreshed ' + timestamp(Date.parse(update.researchUpdatedAt)) + '.' : 'Waiting for the first scheduled fee study refresh.');
     selectWallet(followLatest);
-  } catch { liveError = true; renderBlock(); }
+  } catch { liveError = true; renderBlock(); throw new Error('Live refresh failed'); }
   finally { loadingLive = false; }
 }
 async function start() {
@@ -295,9 +300,10 @@ async function start() {
   text('manifest', JSON.stringify(data.manifest, null, 2)); selectWallet(true);
   if (liveEndpoint) {
     text('latest', 'Latest collected snapshot');
-    void refreshLive();
-    setInterval(() => { renderBlock(); void refreshLive(); }, 60000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderBlock(); void refreshLive(); } });
+    const poller = new LivePoller(refreshLive, () => !document.hidden);
+    void poller.tick();
+    setInterval(() => { if (!document.hidden) renderBlock(); void poller.tick(); }, 60000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderBlock(); void poller.tick(); } });
   }
 }
 void start().catch(() => { const error = el('loadError'); error.hidden = false; error.textContent = 'Unable to load this audit. Rebuild with pnpm replay report, then open it in a current browser with gzip support.'; });

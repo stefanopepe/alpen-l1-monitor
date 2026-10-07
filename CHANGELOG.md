@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.1 — shared read caching and transfer reduction (2026-10-07)
+
+- Cache versioned read evidence in Vercel Runtime Cache across instances; coalesce concurrent misses with transaction-scoped locks. Reuse unchanged time groups and recompute freshness from the current clock.
+- Project unused snapshot fee context, research evaluations, old fee buckets and transaction internals out in SQL before transfer. The hourly worker reads only pressure observations and the prior forecast timeline it needs.
+- Check the live time machine every five minutes while visible, back off after errors, and use ETags to avoid downloading unchanged responses. Preserve existing wallet/fee expiry and network isolation.
+- Add cache, concurrency, freshness, polling, conditional HTTP and database-result-size regression checks. No migration or new credential is required.
+
 ## 2.7.0 — network navigation and publication detail (2026-10-07)
 
 - Add a mainnet/public Signet selector and network-correct mempool.space transaction links across the homepage and time machine.

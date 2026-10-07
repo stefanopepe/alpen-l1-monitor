@@ -19,6 +19,11 @@ export interface TransactionSummary {
   benchmark: FeeBenchmark | null;
 }
 export interface TransactionPackage { commitTxid: string; revealTxids: string[]; complete: boolean }
+export function feeBenchmark(blockHash: string, time: number, buckets: readonly FeeBucket[], blockRates: ReadonlyMap<string, FeeBenchmark>): FeeBenchmark | null {
+  const bucket = buckets.find(b => b.start <= time && b.end > time);
+  return blockRates.get(blockHash) ?? (bucket ? { kind: 'period_median', rate: bucket.rate,
+    start: bucket.start, end: bucket.end, integerQuantized: true } : null);
+}
 export function assessFee(tx: Pick<TransactionSummary, 'feeSats' | 'vsize' | 'benchmark'>) {
   const b = tx.benchmark;
   // A zero in integer-quantized historical data does not mean confirmation was free.
@@ -45,9 +50,7 @@ export function summarizeTransactions(wallet: string, inputs: unknown[], scripts
     if (!relation && !ownInputs.length && !ownOutputs) continue;
     const kind = relation?.kind ?? (!ownInputs.length ? 'deposit' : ownInputs.length !== tx.vin.length ? 'unknown' :
       tx.vout.every(o => o.value === 0 || owned.has(o.scriptpubkey)) ? 'consolidation' : 'spend');
-    const bucket = buckets.find(b => b.start <= s.block_time! && b.end > s.block_time!);
-    const benchmark = blockRates.get(s.block_hash) ?? (bucket ? { kind: 'period_median' as const, rate: bucket.rate,
-      start: bucket.start, end: bucket.end, integerQuantized: true } : null);
+    const benchmark = feeBenchmark(s.block_hash, s.block_time, buckets, blockRates);
     const vsize = Math.ceil(tx.weight / 4);
     unique.set(tx.txid, { wallet, txid: tx.txid, height: s.block_height, time: s.block_time, blockHash: s.block_hash,
       kind, feeSats: tx.fee, vsize, feeRate: tx.fee / vsize, ...relation, benchmark });

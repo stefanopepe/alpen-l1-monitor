@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import type { FeeContext, FeeRates } from '../types.js';
 import { feeContextSchema } from '../observations/schema.js';
+import { groupedRows, readCache, type ReadCache } from './cache.js';
 
 export interface FeeReport {
   observedAt: string | null; rates: FeeRates | null; stale: boolean;
@@ -12,14 +13,14 @@ const keys: (keyof FeeRates)[] = ['fastestFee', 'halfHourFee', 'hourFee', 'econo
 const zeroRates = (): FeeRates => ({ fastestFee: 0, halfHourFee: 0, hourFee: 0, economyFee: 0, minimumFee: 0 });
 
 /** Database-only, network-scoped evidence. Old schema-1 databases use retained runs. */
-export async function readFeeReport(client: PoolClient, network: string, now: Date, staleAfter: number, fallback: FeeContext[]): Promise<FeeReport> {
+export async function readFeeReport(client: PoolClient, network: string, now: Date, staleAfter: number, fallback: FeeContext[], cache: ReadCache = readCache(network)): Promise<FeeReport> {
   const from = new Date(now.getTime() - 25 * 3600000).toISOString();
   const relation = await client.query("SELECT to_regclass('fee_observations') AS name");
   const source = relation.rows[0]?.name
-    ? "SELECT data FROM fee_observations WHERE network=$1 AND observed_at >= $2 AND observed_at <= $3"
-    : "SELECT results->'feeContext' AS data FROM runs WHERE network=$1 AND started_at >= $2 AND started_at <= $3 AND finished_at IS NOT NULL";
-  const rows = await client.query(source, [network, from, now.toISOString()]);
-  const contexts = rows.rows.flatMap(row => { const parsed = feeContextSchema.safeParse(row.data); return parsed.success ? [parsed.data] : []; });
+    ? "SELECT date_trunc('hour',observed_at AT TIME ZONE 'UTC')::text AS bucket,observed_at::text||':'||xmin::text AS revision,data-'pressure' AS data FROM fee_observations WHERE network=$1 AND observed_at >= $2 AND observed_at <= $3"
+    : "SELECT date_trunc('hour',started_at AT TIME ZONE 'UTC')::text AS bucket,started_at::text||':'||xmin::text AS revision,(results->'feeContext')-'pressure' AS data FROM runs WHERE network=$1 AND started_at >= $2 AND started_at <= $3 AND finished_at IS NOT NULL";
+  const rows = await groupedRows<unknown>(client, cache, 'fee-contexts', source, [network, from, now.toISOString()]);
+  const contexts = rows.flatMap(row => { const parsed = feeContextSchema.safeParse(row); return parsed.success ? [parsed.data] : []; });
   return summarizeFees([...fallback, ...contexts], now, staleAfter);
 }
 

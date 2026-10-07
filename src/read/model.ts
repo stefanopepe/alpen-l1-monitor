@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import type { Snapshot } from '../types.js';
 import { feeContextSchema } from '../observations/schema.js';
 import { readFeeReport, type FeeReport } from './fees.js';
+import { readCache, type ReadCache } from './cache.js';
 const n = z.number().finite().nonnegative(), i = n.int().safe();
 const average = z.object({ averageSatVb: n.nullable(), sampleSize: i, complete: z.boolean() });
 export const snapshotSchema = z.object({
@@ -41,15 +42,19 @@ export interface ReadModel {
   wallets: { wallet: string; name: string; stale: boolean; ageSeconds: number | null; snapshot: Snapshot | null; feeContextStale?: boolean }[];
   providerErrors: { provider: string; total: number }[];
 }
-export async function readModel(pool: Pool, network: string, now: Date): Promise<ReadModel> {
+export async function readModel(pool: Pool, network: string, now: Date, cache: ReadCache = readCache(network)): Promise<ReadModel> {
   const c = await pool.connect();
   try {
     await c.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const settings = await c.query('SELECT stale_after_s,primary_is_public FROM settings WHERE network=$1', [network]);
     if (settings.rowCount !== 1) throw new Error('E_DB_NETWORK');
-    const rows = await c.query(`SELECT w.wallet,w.display_name,s.latest_snapshot FROM wallets w LEFT JOIN wallet_state s USING(network,wallet) WHERE w.network=$1 ORDER BY w.wallet`, [network]);
+    const versions = await c.query(`SELECT w.wallet,w.display_name,md5(s.latest_snapshot::text) AS revision
+      FROM wallets w LEFT JOIN wallet_state s USING(network,wallet) WHERE w.network=$1 ORDER BY w.wallet`, [network]);
+    const rows = await cache(c, 'status-wallets', versions.rows, async () => (await c.query(`SELECT w.wallet,w.display_name,
+      s.latest_snapshot #- '{feeContext,pressure}' AS latest_snapshot
+      FROM wallets w LEFT JOIN wallet_state s USING(network,wallet) WHERE w.network=$1 ORDER BY w.wallet`, [network])).rows);
     const errors = await c.query('SELECT provider,total FROM provider_errors WHERE network=$1 ORDER BY provider', [network]);
-    const wallets = rows.rows.map(row => {
+    const wallets = rows.map(row => {
       const snapshot = row.latest_snapshot === null ? null : snapshotSchema.parse(row.latest_snapshot);
       if (snapshot && (snapshot.network !== network || snapshot.wallet !== row.wallet)) throw new Error('E_DB_NETWORK');
       const ageSeconds = snapshot ? Math.max(0, (now.getTime() - Date.parse(snapshot.asOf)) / 1000) : null;
@@ -59,7 +64,7 @@ export async function readModel(pool: Pool, network: string, now: Date): Promise
         stale: ageSeconds === null || ageSeconds > settings.rows[0].stale_after_s };
     });
     if (!wallets.length) throw new Error('E_DB_WALLETS');
-    const fees = await readFeeReport(c, network, now, settings.rows[0].stale_after_s, wallets.flatMap(w => w.snapshot?.feeContext ? [w.snapshot.feeContext] : []));
+    const fees = await readFeeReport(c, network, now, settings.rows[0].stale_after_s, wallets.flatMap(w => w.snapshot?.feeContext ? [w.snapshot.feeContext] : []), cache);
     await c.query('COMMIT');
     return { network, readAt: now.toISOString(), primaryIsPublic: settings.rows[0].primary_is_public, wallets, fees,
       providerErrors: errors.rows as { provider: string; total: number }[] };

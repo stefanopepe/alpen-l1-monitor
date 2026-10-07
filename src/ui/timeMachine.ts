@@ -32,7 +32,7 @@ export function renderTimeMachinePage(source: string, script: string, network = 
     .replace(/<aside class="alert alert-light border mb-4"[\s\S]*?<\/aside>/, `<aside class="saved-report" aria-label="Data freshness">
       <strong>Bitcoin mainnet · Updated analysis</strong>
       <p id="liveStatus" role="status">Connecting to the monitor… Current estimates are unavailable until fresh observations load.</p>
-      <p>Wallet observations update every 15 minutes; the seasonal fee study refreshes hourly. This page checks for updates every minute.</p>
+      <p>Wallet observations update every 15 minutes; the seasonal fee study refreshes hourly. This page checks for updates every five minutes while visible and waits longer after a failed request.</p>
       <p id="researchStatus">Loading the latest fee study…</p>
       <p>The historical replay and its wallet accuracy scores remain fixed to the archive dates below. Later dates show collected observations, with hourly samples for the last 14 days and daily samples for older dates.</p>
     </aside>`)

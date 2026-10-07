@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import type { Pool } from 'pg';
 import { captureFeeHistory } from './archive.js';
 import { feeArchiveSchema, feeModelConfigSchema } from './schema.js';
-import { feeContextSchema } from '../observations/schema.js';
+import { readResearchPressure } from '../read/research.js';
 import { runFeeStudy } from './study.js';
 import { digest } from '../replay/archive.js';
 
@@ -14,7 +14,7 @@ export async function refreshFeeResearch(pool: Pool, now = new Date()) {
   const lock = await pool.query(`INSERT INTO fee_research(network,holder,expires_at,last_attempt_at)
     VALUES('mainnet',$1,now()+interval '13 minutes',now()) ON CONFLICT(network) DO UPDATE
     SET holder=$1,expires_at=now()+interval '13 minutes',last_attempt_at=now()
-    WHERE fee_research.expires_at<now() RETURNING archive,study`, [holder]);
+    WHERE fee_research.expires_at<now() RETURNING archive,study->'timeline' AS timeline`, [holder]);
   if (!lock.rowCount) return { status: 'skipped_lease_held' };
   try {
     await pool.query(`INSERT INTO time_machine_samples(network,wallet,day,snapshot)
@@ -24,19 +24,14 @@ export async function refreshFeeResearch(pool: Pool, now = new Date()) {
     const prior = feeArchiveSchema.parse(seed), { digest: expected, ...body } = prior;
     if (digest(body) !== expected) throw new Error('E_RESEARCH_ARCHIVE_DIGEST');
     const { archive } = await captureFeeHistory(prior);
-    const observations = await pool.query(`SELECT data FROM fee_observations WHERE network='mainnet'
-      AND observed_at >= $1::timestamptz-interval '30 days' AND observed_at <= now() ORDER BY observed_at`, [now.toISOString()]);
-    const pressure = observations.rows.flatMap(row => {
-      const context = feeContextSchema.parse(row.data);
-      return context.pressure ? [context.pressure] : [];
-    });
+    const pressure = await readResearchPressure(pool, now);
     const provenance = JSON.parse(readFileSync('config/research-provenance.json', 'utf8')) as { sourceSha256: string };
     const asOf = Math.ceil(Date.now() / 1000);
     const study = runFeeStudy(archive, pressure, feeModelConfigSchema.parse({}), asOf, undefined, undefined, provenance.sourceSha256);
     if (study.coverage.end < asOf - 3 * 3600 || !study.forecasts.some(f => f.model === 'seasonal' && !f.reason)) throw new Error('E_RESEARCH_HISTORY_STALE');
     // Preserve earlier daily forecasts; only the latest hourly origin is served.
-    const previous = lock.rows[0].study as typeof study | null;
-    study.timeline = [...new Map([...(study.timeline ?? []), ...(previous?.timeline ?? []).filter(t => t.origin % 86400 === 0 && t.origin >= asOf - 180 * 86400)]
+    const previous = lock.rows[0].timeline as typeof study.timeline;
+    study.timeline = [...new Map([...(study.timeline ?? []), ...(previous ?? []).filter(t => t.origin % 86400 === 0 && t.origin >= asOf - 180 * 86400)]
       .map(t => [t.origin, t])).values()].sort((a, b) => a.origin - b.origin);
     const saved = await pool.query(`UPDATE fee_research SET archive=$2,study=$3,updated_at=now(),last_error=NULL,
       holder=NULL,expires_at='-infinity' WHERE network='mainnet' AND holder=$1 AND expires_at>now() RETURNING updated_at`,
