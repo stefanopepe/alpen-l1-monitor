@@ -18,6 +18,9 @@ import { replayFixture } from './replay-fixture.js';
 import type { ReplayRecord } from '../src/replay/evaluate.js';
 import timeMachine from '../api/time-machine.js';
 import researchRefresh from '../api/research-refresh.js';
+import { createReadCache } from '../src/read/cache.js';
+import { readModel } from '../src/read/model.js';
+import { feeContextSchema } from '../src/observations/schema.js';
 
 const db = new PGlite();
 const query = async (sql: string, args?: unknown[]) => { const r = await db.query(sql, args); return { rows: r.rows, rowCount: r.rows.length || r.affectedRows || 0 }; };
@@ -127,6 +130,60 @@ it('expires the current study while retaining causal historical forecasts', () =
   expect(currentFeeFresh({ ...study, coverage: { ...study.coverage, end: origin - 10801 } }, origin)).toBe(false);
   expect(forecastAt(study, origin + 7201)?.origin).toBe(origin);
   expect(forecastAt(study, origin - 1)?.origin).toBeLessThan(origin);
+});
+
+it('reuses database evidence across instances, invalidates changes and expires cached estimates', async () => {
+  const saved = structuredClone(record.snapshot);
+  const context = feeContextSchema.parse({ provider: 'mempool', observedAt: timestamp, status: 'available', error: null,
+    rates: { fastestFee: 2, halfHourFee: 2, hourFee: 2, economyFee: 1, minimumFee: 1 } });
+  saved.feeContext = context;
+  const historical = Array.from({ length: 14 * 24 }, (_, i) => {
+    const asOf = new Date(now.getTime() - (i + 1) * 3600000).toISOString();
+    return { runId: randomUUID(), asOf, data: { ...saved, asOf, finishedAt: asOf, feeContext: { ...context,
+      completed: { status: 'available', observedAt: asOf, error: null, blocks: Array.from({ length: 15 }, (_, j) => ({
+        id: j.toString(16).padStart(64, '0'), height: 100 + j, timestamp: Math.floor(Date.parse(asOf) / 1000), weight: 4000000,
+        extras: { medianFee: 1, feeRange: Array(100).fill(1) },
+      })) } } } };
+  });
+  await query(`INSERT INTO runs(run_id,network,status)
+    SELECT (s->>'runId')::uuid,'mainnet','ok' FROM jsonb_array_elements($1::jsonb) AS s`, [JSON.stringify(historical)]);
+  await query(`INSERT INTO snapshots(network,wallet,run_id,scan_started_at,data)
+    SELECT 'mainnet','ee',(s->>'runId')::uuid,(s->>'asOf')::timestamptz,s->'data' FROM jsonb_array_elements($1::jsonb) AS s`, [JSON.stringify(historical)]);
+  await query("UPDATE wallet_state SET latest_snapshot=$1 WHERE wallet='ee'", [JSON.stringify(saved)]);
+  await query("INSERT INTO fee_observations VALUES('mainnet',$1,$2,1,$3,$4)", [randomUUID(), timestamp, 'b'.repeat(64), JSON.stringify(context)]);
+  const data = new Map<string, unknown>(), fills: string[] = [];
+  const storage = { get: async (key: string) => data.get(key) ?? null, set: async (key: string, value: unknown) => { data.set(key, value); } };
+  const instance = () => createReadCache(storage, 'mainnet-test', m => fills.push(m.dataset));
+  let bytes = 0;
+  const measuredQuery = async (sql: string, args?: unknown[]) => {
+    const result = await query(sql, args); bytes += Buffer.byteLength(JSON.stringify(result.rows)); return result;
+  };
+  const measured = { connect: async () => ({ query: measuredQuery, release() {} }) } as unknown as Pool;
+  const legacy = await query("SELECT data FROM snapshots UNION ALL SELECT jsonb_build_object('study',study,'archive',archive) FROM fee_research");
+  const legacyBytes = Buffer.byteLength(JSON.stringify(legacy.rows));
+  const first = await readTimeMachine(measured, 'mainnet', now, instance()), coldBytes = bytes;
+  fills.length = 0; bytes = 0;
+  const repeated = await readTimeMachine(measured, 'mainnet', now, instance());
+  expect(repeated).toEqual(first); expect(fills).toEqual([]);
+  expect(bytes).toBeLessThan(coldBytes / 5);
+  expect(coldBytes).toBeLessThan(legacyBytes / 3);
+  if (process.env.MEASURE_READ_TRANSFER === '1') console.info(JSON.stringify({ fixture: '14 days hourly wallet samples plus fee study', legacyBytes, coldBytes, warmBytes: bytes }));
+  const status = await readModel(measured, 'mainnet', now, instance());
+  expect(status.wallets[0]?.stale).toBe(false); expect(status.fees?.stale).toBe(false);
+  fills.length = 0;
+  const later = new Date(now.getTime() + 3301000);
+  const expired = await readModel(measured, 'mainnet', later, instance());
+  expect(expired.wallets[0]?.stale).toBe(true); expect(expired.fees?.stale).toBe(true);
+  expect(expired.readAt).toBe(later.toISOString()); expect(fills).toEqual([]);
+  const newer = { ...saved, asOf: later.toISOString(), finishedAt: later.toISOString() };
+  await query("UPDATE wallet_state SET latest_snapshot=$1 WHERE wallet='ee'", [JSON.stringify(newer)]);
+  expect((await readModel(measured, 'mainnet', later, instance())).wallets[0]?.stale).toBe(false);
+  expect(fills).toContain('status-wallets'); fills.length = 0;
+  const changed = await readTimeMachine(measured, 'mainnet', later, instance());
+  expect(changed.records.at(-1)?.snapshot.asOf).toBe(later.toISOString());
+  expect(fills).toContain('wallet-samples:latest');
+  const boundary = new Date(now.getTime() - 14 * 86400000).toISOString().slice(0, 10);
+  expect(fills.every(name => ['wallet-samples:latest', 'wallet-samples', `wallet-samples:${boundary}`, 'research'].includes(name))).toBe(true);
 });
 
 it('protects scheduled writes, isolates Signet and fails closed on missing storage', async () => {

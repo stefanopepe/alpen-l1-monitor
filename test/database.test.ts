@@ -11,6 +11,7 @@ import { emptyHistory } from '../src/extract/history.js';
 import { latestEeDa } from '../src/extract/eeDa.js';
 import { txSchema } from '../src/chain/schemas.js';
 import { config, hash, utxo } from './helpers.js';
+import { createReadCache } from '../src/read/cache.js';
 const embedded = process.env.TEST_DATABASE_URL ? null : new PGlite();
 const real = process.env.TEST_DATABASE_URL ? new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }) : null;
 const query = async (sql: string, args?: unknown[]) => {
@@ -102,4 +103,14 @@ it('retains stale latest data and makes maintenance idempotent', async () => {
 it('int8 parser never silently loses satoshis', () => {
   expect(parseInt8('2100000000000000')).toBe(2100000000000000);
   expect(() => parseInt8('9007199254740993')).toThrow('E_DB_INTEGER_RANGE');
+});
+it.skipIf(!real)('coalesces cache fills across read-only transactions through PgBouncer', async () => {
+  const values = new Map<string, unknown>(), fills: string[] = [];
+  const storage = { get: async (key: string) => values.get(key) ?? null, set: async (key: string, value: unknown) => { values.set(key, value); } };
+  const instance = () => createReadCache(storage, 'postgres-cache-integration', m => fills.push(m.dataset));
+  const now = new Date();
+  const [a, b] = await Promise.all([readModel(pool, 'mainnet', now, instance()), readModel(pool, 'mainnet', now, instance())]);
+  expect(a).toEqual(b);
+  expect(fills.filter(name => name === 'status-wallets')).toHaveLength(1);
+  expect(fills.filter(name => name === 'fee-contexts')).toHaveLength(1);
 });
