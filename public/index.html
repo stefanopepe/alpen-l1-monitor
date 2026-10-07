@@ -11,7 +11,7 @@
 <p><small id="schedule">Collection runs automatically every 15 minutes. Reload to see the latest saved data.</small></p>
 <button class="monitor-action" id="load">Reload status</button>
 <pre id="out" aria-live="polite">Loading wallet status…</pre>
-<details id="transactions" hidden><summary>Transaction details</summary><pre id="transaction-text"></pre></details>
+<details id="transactions" hidden><summary>Latest completed publication · transaction details per wallet</summary><pre id="transaction-text"></pre></details>
 <details>
   <summary>Operator controls</summary>
   <p><a href="/consolidation.html">Consolidate stranded outputs</a></p>
@@ -23,49 +23,5 @@
   <p><small>Manual collection requires the operator token and can take several minutes. The token stays in this page's memory and is cleared after use.</small></p>
   </div>
 </details>
-<script>
-const out = document.getElementById('out');
-const load = document.getElementById('load');
-async function loadStatus() {
-  load.disabled = true;
-  try {
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    const response = await fetch('/api/status?format=text&timezone=' + encodeURIComponent(timezone), { cache: 'no-store' });
-    if(response.ok && response.headers.get('x-monitor-network')!==document.documentElement.dataset.network){out.textContent='The wallet data belongs to a different network. Reload this deployment.';return}
-    if(response.ok){
-      const preview=response.headers.get('x-monitor-preview')==='1';
-      document.getElementById('collection-controls').hidden=preview;
-      document.getElementById('schedule').textContent=preview?'Preview data · Automatic and manual collection are disabled.':'Collection runs automatically every 15 minutes. Reload to see the latest saved data.';
-    }
-    if (response.ok) {
-      const [report, transactions = ''] = (await response.text()).split('\n\nTRANSACTION DETAILS\n');
-      out.textContent = report;
-      document.getElementById('transaction-text').textContent = transactions.trim();
-      document.getElementById('transactions').hidden = !transactions.trim();
-    } else out.textContent = 'Status is temporarily unavailable. Try reloading shortly.';
-  } catch {
-    out.textContent = 'Unable to read status. Check your connection and try again.';
-  } finally {
-    load.disabled = false;
-  }
-}
-load.onclick = loadStatus;
-document.getElementById('refresh').onclick = async () => {
-  const button = document.getElementById('refresh');
-  const token = document.getElementById('write');
-  button.disabled = true;
-  out.textContent = 'Collecting… Existing snapshots remain available through Reload status.';
-  try {
-    const response = await fetch('/api/refresh', { method: 'POST', headers: { Authorization: 'Bearer ' + token.value } });
-    if (response.ok) await loadStatus();
-    else out.textContent = response.status === 401 ? 'Refresh token not accepted.' : 'Collection failed. Reload status to view the last saved data.';
-  } catch {
-    out.textContent = 'Refresh connection ended. Reload status to check the last saved data.';
-  } finally {
-    button.disabled = false;
-    token.value = '';
-  }
-};
-loadStatus();
-</script>
+<script src="/monitor.js"></script>
 </html>

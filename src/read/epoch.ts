@@ -6,6 +6,7 @@ export function epochReportLines(context: EpochContext | undefined, tip: Tip): s
   const p = context.latest;
   const lines = p ? [`${title}: ${p.epoch}`,
     `Posted in Bitcoin block ${p.blockHeight} at ${new Date(p.blockTime * 1000).toISOString()} | ${tip.height - p.blockHeight + 1} confirmations at report block ${tip.height}`,
+    `Checkpoint commit transaction: ${p.commitTxid}`,
     `Reveal transaction: ${p.txid}`,
     `Checkpoint covers L1 through block ${p.l1Height} | OL slot ${p.l2Slot} | OL block ${p.l2BlockId}`] :
     [`${title}: unavailable (no decodable checkpoint in retained wallet history).`];

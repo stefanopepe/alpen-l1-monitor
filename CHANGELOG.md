@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.0 — network navigation and publication detail (2026-10-07)
+
+- Add a mainnet/public Signet selector and network-correct mempool.space transaction links across the homepage and time machine.
+- Identify each wallet's latest completed publication with its EE update or OL epoch, Bitcoin posting block, and completion timestamp.
+- Show pending EE blob payload bytes, payload vB, transaction overhead, total and remaining vB, historical completion estimates, and costs at the current high-priority fee quote. Separate observed values from estimates, preserve overdue estimates, and suppress estimates when evidence is insufficient or stale. New fields populate on the next collection; no database migration is required.
+- Color commit and reveal markers against their historical fee benchmark. Use visible-range logarithmic commit sizes below 48 hours, full contrast at 24 hours, actual vB labels when space allows, and compact markers for wide or crowded views.
+- Preserve equal-sized commits and existing mainnet-only historical replay evidence on both deployments.
+
 ## 2.6.2 — explicit transaction fee comparisons (2026-10-06)
 
 - Replace the misleading “Overpayment estimate” label with “Fee vs period benchmark” or “Fee vs same-block median,” including the reference rate in the inspector, transaction list and chart tooltips.

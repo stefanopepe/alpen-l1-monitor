@@ -3,6 +3,7 @@ import type { PublicationAverage, Snapshot } from '../types.js';
 import { summarizeFees } from './fees.js';
 import { reportTime } from './time.js';
 import { fundingBalance } from '../model/composition.js';
+import { pendingBlobLines } from './pending.js';
 
 const number = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 const rate = (value: number | null | undefined) => value == null ? 'Unavailable' : value > 0 && value < 0.01 ? '<0.01' : number(value);
@@ -83,13 +84,14 @@ export function renderReport(model: ReadModel, timezone = 'UTC'): string {
       else lines.push(context ? 'Unavailable · no complete readable blob found' : 'Unavailable · not collected');
       if (!context) alerts.push('EE: publication data not collected');
       lines.push('', row('Blobs awaiting completion', context ? context.pendingPublications : 'Unavailable'));
+      lines.push(...pendingBlobLines(s, fees, w.stale, model.readAt, timezone));
       if (context && !context.coverageComplete) alerts.push('EE: posting history incomplete; latest progress may be missing');
       if (context?.undecodedPublications) alerts.push(`EE: unreadable publications: ${context.undecodedPublications}; latest progress may be incomplete`);
     }
     if (w.wallet === 'ol') {
       const context = s.epochContext, p = context?.latest;
       lines.push('', 'Latest published checkpoint');
-      if (p) lines.push(row('Last OL block included', p.l2BlockId), row('Last OL slot included', BigInt(p.l2Slot).toLocaleString('en-US')),
+      if (p) lines.push(row('Epoch ID', number(p.epoch)), row('Last OL block included', p.l2BlockId), row('Last OL slot included', BigInt(p.l2Slot).toLocaleString('en-US')),
         row('Last L1 block included', number(p.l1Height)), ...publicationCost(s), row('Bitcoin posting block', number(p.blockHeight)),
         row('Publication time', reportTime(p.blockTime, timezone)), row('Confirmations', number(s.tip.height - p.blockHeight + 1)));
       else lines.push(context ? 'Unavailable · no readable checkpoint found' : 'Unavailable · not collected');
@@ -124,8 +126,12 @@ export function renderReport(model: ReadModel, timezone = 'UTC'): string {
   for (const s of snapshots) {
     const p = s.eeDaContext?.latest ?? s.epochContext?.latest;
     if (!p) continue;
+    lines.push(`${s.wallet.toUpperCase()} · latest completed publication observed as of ${reportTime(s.asOf, timezone)}`,
+      'epoch' in p ? row('Epoch ID', number(p.epoch)) : row('EE update ID', `${p.updateSeqNo} · independent of the OL epoch`),
+      row('Bitcoin posting block', number(p.blockHeight)), row('Publication completed', reportTime(p.blockTime, timezone)));
     lines.push(`${s.wallet.toUpperCase()} commit: ${p.commitTxid}`);
     for (const txid of 'revealTxids' in p ? p.revealTxids : [p.txid]) lines.push(`${s.wallet.toUpperCase()} data transaction: ${txid}`);
+    lines.push('');
   }
   return lines.join('\n') + '\n';
 }

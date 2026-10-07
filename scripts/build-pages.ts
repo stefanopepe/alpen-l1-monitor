@@ -9,6 +9,7 @@ const network = deploymentNetwork();
 const script = buildSync({ entryPoints: ['src/replay/report/client.ts'], bundle: true, write: false, minify: true, platform: 'browser', format: 'iife', target: 'es2022' }).outputFiles[0]!.text;
 writeFileSync('config/research-provenance.json', JSON.stringify(implementationProvenance()));
 mkdirSync('dist', { recursive: true });
+buildSync({ entryPoints: ['src/ui/monitor.ts'], bundle: true, minify: true, platform: 'browser', format: 'iife', target: 'es2022', outfile: 'dist/monitor.js' });
 for (const page of ['index.html', 'consolidation.html']) {
   writeFileSync(`dist/${page}`, renderPage(readFileSync(`public/${page}`, 'utf8'), network));
 }

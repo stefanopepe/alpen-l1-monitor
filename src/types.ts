@@ -44,6 +44,13 @@ export interface PostedEeDa {
 export interface EeDaContext {
   sourceRef: string; latest: PostedEeDa | null; coverageComplete: boolean;
   pendingPublications: number; undecodedPublications: number;
+  pending?: PendingEeDa[];
+}
+export interface PendingEeDa {
+  commitTxid: string; blockHeight: number; blockTime: number; chunkCount: number; confirmedChunks: number;
+  observedPayloadBytes: number | null; commitVsize: number; confirmedRevealVsize: number;
+  estimatedPayloadBytes: number | null; estimatedRemainingVsize: number | null; estimatedTotalVsize: number | null;
+  expectedBlockHeight: number | null; expectedAt: number | null; sampleSize: number;
 }
 export interface Snapshot {
   publicationReport?: PublicationReport;

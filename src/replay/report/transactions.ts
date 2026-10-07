@@ -1,4 +1,5 @@
 import { assessFee, type TransactionSummary } from '../../transactions.js';
+import { transactionLink, transactionUrl } from '../../ui/explorer.js';
 
 const labels: Record<TransactionSummary['kind'], string> = { commit: 'Checkpoint commit', reveal: 'Checkpoint reveal', deposit: 'Funding received', consolidation: 'Consolidation', spend: 'Wallet spending', unknown: 'Unclassified transaction' };
 const el = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -39,8 +40,9 @@ export class TransactionInspector {
     el('transactionTitle').textContent = labels[tx.kind];
     el('transactionWhen').textContent = when(tx.time) + ' · Confirmed in block ' + fmt(tx.height) + (tx.kind === 'deposit' ? ' · Fee paid by the sending transaction; not a sequencer spending cost.' : '');
     const link = el<HTMLAnchorElement>('transactionExplorer'); link.hidden = false;
-    link.href = 'https://mempool.space/' + (this.network === 'mainnet' ? '' : this.network + '/') + 'tx/' + tx.txid;
-    el('transactionId').textContent = tx.txid;
+    const url = transactionUrl(this.network, tx.txid); link.hidden = !url;
+    if (url) link.href = url; else link.removeAttribute('href');
+    el('transactionId').replaceChildren(transactionLink(this.network, tx.txid));
     const choice = el<HTMLSelectElement>('transactionChoice'); choice.replaceChildren(); choice.disabled = false;
     for (const peer of this.transactions.filter(t => t.blockHash === tx.blockHash)) {
       const option = document.createElement('option'); option.value = peer.txid;
@@ -70,7 +72,9 @@ export class TransactionInspector {
     for (const other of related.filter(t => t.txid !== txid)) {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'btn btn-outline-secondary';
       button.textContent = 'Inspect ' + labels[other.kind].toLowerCase() + ' · ' + other.txid.slice(0, 8) + '…';
-      button.onclick = () => this.inspect(other.txid); links.append(button);
+      button.onclick = () => this.inspect(other.txid);
+      const group = document.createElement('span');
+      group.append(button, ' ', transactionLink(this.network, other.txid, 'mempool.space ↗')); links.append(group);
     }
     this.renderList();
     if (focus) { el('transactionInspector').focus({ preventScroll: true }); el('transactionInspector').scrollIntoView({ block: 'nearest', behavior: 'instant' }); }
@@ -86,11 +90,13 @@ export class TransactionInspector {
       (filter === 'all' || (filter === 'other' ? !['commit', 'reveal', 'deposit'].includes(t.kind) : t.kind === filter))).toReversed();
     el('eventCount').textContent = '· ' + visible.length + (visible.length === 1 ? ' transaction' : ' transactions'); el('events').replaceChildren();
     for (const tx of visible.slice(0, this.limit)) {
-      const button = document.createElement('button'); button.type = 'button'; button.className = 'list-group-item list-group-item-action' + (tx.txid === this.selected ? ' transaction-selected' : '');
+      const row = document.createElement('div'); row.className = 'list-group-item transaction-row' + (tx.txid === this.selected ? ' transaction-selected' : '');
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'transaction-inspect-button';
       button.setAttribute('aria-pressed', String(tx.txid === this.selected)); button.textContent = labels[tx.kind] + ' · ' + tx.txid.slice(0, 12) + '…';
       const date = document.createElement('span'); date.className = 'event-date'; date.textContent = when(tx.time) + ' · Block ' + tx.height;
       const fees = document.createElement('span'); fees.className = 'event-fees'; fees.textContent = fmt(tx.vsize) + ' vB · ' + fmt(tx.feeSats) + ' sats · ' + fmt(tx.feeRate, 3) + ' sat/vB · ' + feeLabel(tx);
-      button.append(date, fees); button.onclick = () => this.inspect(tx.txid, true); el('events').append(button);
+      button.append(date, fees); button.onclick = () => this.inspect(tx.txid, true);
+      row.append(button, transactionLink(this.network, tx.txid, 'mempool.space ↗')); el('events').append(row);
     }
     if (!visible.length) el('events').textContent = 'No recorded transactions in this view. Zoom out or change the filter.';
     el('moreTransactions').hidden = visible.length <= this.limit;

@@ -48,7 +48,7 @@ try {
     ['/api/metrics', 'GET', '', 503], ['/api/collect', 'GET', cron, 503],
     ['/api/refresh', 'POST', cron, 503],
   ] as const;
-  const stylesheets = ['/monitor.css', '/time-machine.css'].map(path => [path, 'GET', '', 200] as const);
+  const stylesheets = ['/monitor.css', '/time-machine.css', '/monitor.js'].map(path => [path, 'GET', '', 200] as const);
   for (const [path, method, token, expected] of [...cases, ...stylesheets]) {
     const response = await fetch(`${origin}${path}`, { method, headers: token ? { authorization: `Bearer ${token}` } : {}, signal: AbortSignal.timeout(5000) });
     if (response.status !== expected) throw new Error(`E_SMOKE_STATUS_${response.status}`);

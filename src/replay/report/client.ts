@@ -1,4 +1,5 @@
 import { eeDaReportLines } from '../../read/eeDa.js';
+import { renderTransactionText } from '../../ui/explorer.js';
 import { epochReportLines } from '../../read/epoch.js';
 import Chart from 'chart.js/auto';
 import { FundingTimeline, type TimelineRange } from './timeline.js';
@@ -126,8 +127,8 @@ function renderBlock() {
   }
   const ol = s.wallet === 'ol' ? s : data.records.find(row => row.snapshot.wallet === 'ol' && row.snapshot.tip.height === s.tip.height)?.snapshot;
   const ee = s.wallet === 'ee' ? s : data.records.find(row => row.snapshot.wallet === 'ee' && row.snapshot.tip.height === s.tip.height)?.snapshot;
-  text('eeDaContext', eeDaReportLines(ee?.eeDaContext, s.tip).join('\n'));
-  text('epochContext', epochReportLines(ol?.epochContext, s.tip).join('\n'));
+  renderTransactionText(el('eeDaContext'), eeDaReportLines(ee?.eeDaContext, s.tip).join('\n'), s.network);
+  renderTransactionText(el('epochContext'), epochReportLines(ol?.epochContext, s.tip).join('\n'), s.network);
   text('inputCount', '· ' + s.naiveRunway.sampleSize + ' complete settlements');
   el('inventory').replaceChildren();
   for (const [name, val] of [['Total observed wallet balance', fmt(c.balanceSats) + ' sats'], ['Confirmed funding balance (>546 sats)', fmt(c.spendableSats) + ' sats'], ['Pending confirmation (>546 sats)', r.collected ? fmt(c.unconfirmedGtDustSats) + ' sats' : 'Not recorded in historical replay'], ['Small outputs (≤546 sats; excluded by pinned model)', fmt(c.strandedSats) + ' sats'], ['Unsupported confirmed outputs (>546 sats)', fmt(c.unsupportedGtDustSats) + ' sats'], ['Largest confirmed funding output', fmt(c.largestUtxoSats) + ' sats'],

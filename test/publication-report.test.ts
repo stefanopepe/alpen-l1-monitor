@@ -89,6 +89,10 @@ it('persists report data, renders real report labels and keeps IDs in transactio
   expect(text).not.toContain('updateSeqNo');
   expect(text.split('TRANSACTION DETAILS')[0]).not.toContain(hash(22));
   expect(text).toContain(hash(22));
+  expect(text).toContain('EE · latest completed publication observed as of');
+  expect(text).toMatch(/EE update ID:\s+123 · independent of the OL epoch/);
+  expect(text.split('TRANSACTION DETAILS')[1]).toMatch(/Bitcoin posting block:\s+99/);
+  expect(text.split('TRANSACTION DETAILS')[1]).toContain('Publication completed:');
   saved.publicationReport!.latest!.previous24h.averageSatVb = 3.001;
   expect(renderText(model)).toContain('↓ <0.1%');
   saved.publicationReport!.latest!.previous24h.averageSatVb = 2.999;

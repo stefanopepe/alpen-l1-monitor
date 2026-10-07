@@ -89,3 +89,28 @@ it('keeps future DA out of earlier snapshots and retains the context in stored-r
   expect((await replayAt(index, v, 40, 'ee')).record.snapshot.eeDaContext?.latest).toBeNull();
   expect((await replayAt(index, v, 41, 'ol')).record.snapshot.eeDaContext).toBeUndefined();
 });
+
+it('estimates pending bytes, total vB and completion from preceding decoded packages without using future reveals', () => {
+  const { commit, reveal, scripts, tip } = fixture();
+  const txs: Record<string, ChainTx> = {};
+  const baseTime = commit.status.block_time!;
+  for (let index = 0; index < 4; index++) {
+    const c = structuredClone(commit), r = structuredClone(reveal);
+    c.txid = hash(700 + index); c.status.block_height = 100 + index * 3; c.status.block_time = baseTime + index * 1800;
+    r.txid = hash(800 + index); r.vin[0]!.txid = c.txid;
+    r.status.block_height = c.status.block_height + 2; r.status.block_time = c.status.block_time + 1200;
+    txs[c.txid] = c; txs[r.txid] = r;
+  }
+  const asOf = { ...tip, height: 109, blockTime: baseTime + 5400 };
+  const result = latestEeDa(txs, scripts, asOf, true);
+  expect(result.pendingPublications).toBe(1);
+  expect(result.pending![0]).toMatchObject({ commitTxid: hash(703), confirmedChunks: 0, observedPayloadBytes: 0, sampleSize: 3,
+    estimatedPayloadBytes: 60, estimatedRemainingVsize: Math.ceil(reveal.weight / 4),
+    estimatedTotalVsize: Math.ceil(commit.weight / 4) + Math.ceil(reveal.weight / 4), expectedBlockHeight: 111, expectedAt: baseTime + 6600 });
+  const saved = compactHistory({ ...emptyHistory(), transactions: txs });
+  expect(latestEeDa(saved.transactions, scripts, asOf, true)).toEqual(result);
+  expect(latestEeDa(txs, scripts, asOf, false).pending![0]).toMatchObject({ estimatedPayloadBytes: null, estimatedRemainingVsize: null, expectedAt: null });
+  const onlyPending = { [hash(703)]: txs[hash(703)]! };
+  expect(latestEeDa(onlyPending, scripts, asOf, true).pending![0]).toMatchObject({ sampleSize: 0, estimatedPayloadBytes: null, expectedAt: null });
+  expect(latestEeDa(txs, scripts, { ...asOf, height: 111 }, true).pendingPublications).toBe(0);
+});

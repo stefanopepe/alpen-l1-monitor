@@ -1,6 +1,8 @@
 :root{--network-accent:#173c55;--network-soft:#eaf0f5;--network-line:#c5d3df}
 .network-banner{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin:0 0 1.4rem;padding:.65rem 1rem;border:1px solid var(--network-line);border-left:4px solid var(--network-accent);border-radius:7px;background:var(--network-soft);color:var(--network-accent);font-size:13px;line-height:1.5}
 .network-banner strong{font-weight:650;letter-spacing:.025em}
+.network-banner select{font:inherit;color:inherit;background:transparent;border:1px solid var(--network-line);border-radius:5px;padding:.4rem 1.8rem .4rem .6rem;max-width:100%;cursor:pointer}
+.network-banner select:focus-visible{outline:3px solid var(--network-accent);outline-offset:3px}
 html[data-theme=testnet]{--network-accent:#6d35b1;--network-soft:#f0e7fc;--network-line:#d5bdeb;--ink:#322340;--muted:#6f5c7d;--line:#e1d5ec;--soft:#f5effb;--green:#6d35b1}
 html[data-theme=testnet] body{background:#f8f4fc;color:var(--ink)}
 html[data-theme=testnet] a{color:var(--network-accent)}
