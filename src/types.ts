@@ -73,4 +73,5 @@ export interface FeeContext {
   pressure?: import('./fees/schema.js').FeePressure;
   completed?: import('zod').infer<typeof import('./observations/schema.js').completedFeesSchema>;
   persistence?: 'durable' | 'unavailable';
+  kind?: 'historical_blocks';
 }

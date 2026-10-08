@@ -1,6 +1,6 @@
 {
   "name": "bridge-wallet-monitor",
-  "version": "2.7.2",
+  "version": "2.7.3",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,6 +9,7 @@
   "packageManager": "pnpm@11.25.0",
   "scripts": {
     "fees": "node --import tsx scripts/fees.ts",
+    "fees:backfill": "node --env-file-if-exists=.env --import tsx scripts/backfill-block-fees.ts",
     "replay": "node --env-file-if-exists=.env --import tsx scripts/replay.ts",
     "replay:publish": "node --import tsx scripts/publish-time-machine.ts",
     "dev": "node --env-file-if-exists=.env --import tsx scripts/dev.ts",

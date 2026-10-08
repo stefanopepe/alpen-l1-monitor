@@ -27,7 +27,7 @@ export async function readFeeReport(client: PoolClient, network: string, now: Da
 export function summarizeFees(contexts: readonly FeeContext[], now: Date, staleAfter = 3300): FeeReport {
   const end = now.getTime() / 1000, start = end - 86400;
   const time = (iso: string) => Date.parse(iso) / 1000;
-  const quotes = [...new Map(contexts.filter(c => time(c.observedAt) <= end).map(c => [c.observedAt, c])).values()]
+  const quotes = [...new Map(contexts.filter(c => !c.kind && time(c.observedAt) <= end).map(c => [c.observedAt, c])).values()]
     .sort((a, b) => time(a.observedAt) - time(b.observedAt));
   const current = quotes.at(-1), sums = zeroRates();
   let quoteCoverageSeconds = 0;
@@ -41,7 +41,10 @@ export function summarizeFees(contexts: readonly FeeContext[], now: Date, staleA
   }
   const completed = contexts.flatMap(c => c.completed?.status === 'available' && time(c.completed.observedAt) <= end ? [c.completed] : [])
     .sort((a, b) => time(a.observedAt) - time(b.observedAt));
-  const latestObservation = completed.at(-1);
+  // A backfill adds mined-block facts, never a current quote or a new observed tip.
+  const latestObservation = contexts.filter(c => !c.kind).flatMap(c =>
+    c.completed?.status === 'available' && time(c.completed.observedAt) <= end ? [c.completed] : [])
+    .sort((a, b) => time(a.observedAt) - time(b.observedAt)).at(-1);
   const tip = latestObservation?.blocks?.reduce((a, b) => a.height > b.height ? a : b);
   const blocks = new Map<number, NonNullable<NonNullable<FeeContext['completed']>['blocks']>[number]>();
   for (const observation of completed) for (const block of observation.blocks ?? []) {
@@ -59,10 +62,12 @@ export function summarizeFees(contexts: readonly FeeContext[], now: Date, staleA
   const emptyCount = window.filter(b => b.transactionFees?.transactionCount === 0).length;
   // A mined block can have a header timestamp ahead of the collector's clock.
   const latest = tip ? blocks.get(tip.height) ?? tip : undefined;
+  const firstInWindow = ordered.findIndex(b => b.timestamp > start);
+  const coverage = ordered.slice(Math.max(0, firstInWindow - 1));
   const complete = !!tip && !!latestObservation && end - time(latestObservation.observedAt) <= staleAfter &&
     unavailableCount === 0 &&
-    ordered.some(b => b.timestamp <= start) && ordered.at(-1)?.height === tip.height &&
-    ordered.every((b, i) => i === 0 || b.height === ordered[i - 1]!.height + 1);
+    firstInWindow > 0 && coverage.at(-1)?.height === tip.height &&
+    coverage.every((b, i) => i === 0 || b.height === coverage[i - 1]!.height + 1);
   const stale = !current || current.status !== 'available' || !current.rates || end - time(current.observedAt) > staleAfter;
   return {
     observedAt: current?.observedAt ?? null, rates: current?.status === 'available' ? current.rates : null, stale,
