@@ -1,14 +1,15 @@
 import type { Pool, PoolClient } from 'pg';
 import type { ValidatedConfig } from '../config/load.js';
 import type { AddressRecord, Snapshot, Utxo } from '../types.js';
-import { compactHistory, emptyHistory, type HistoryState } from '../extract/history.js';
+import { compactHistory, type HistoryState } from '../extract/history.js';
 import { createHash } from 'node:crypto';
 import { feeContextSchema } from '../observations/schema.js';
 import type { FeeContext } from '../types.js';
+import { walletIndexReader, type WalletIndexReader } from './walletIndex.js';
+export type { WalletState } from './walletIndex.js';
 export interface Lease { network: string; runId: string; fence: number; slot: number }
-export interface WalletState { addresses: AddressRecord[]; history: HistoryState; utxos?: Utxo[]; snapshot?: Snapshot }
 export class Store {
-  constructor(readonly pool: Pool) {}
+  constructor(readonly pool: Pool, readonly readState: WalletIndexReader = walletIndexReader()) {}
   async assertConfig(v: ValidatedConfig) {
     const stamp = await this.pool.query('SELECT network FROM network_stamp');
     if (stamp.rows.length !== 1 || stamp.rows[0].network !== v.config.network) throw new Error('E_DB_NETWORK');
@@ -62,9 +63,8 @@ export class Store {
     await this.pool.query(`UPDATE run_lease SET holder=NULL,expires_at='-infinity',last_completed_slot=CASE WHEN $4 THEN GREATEST(last_completed_slot,$5) ELSE last_completed_slot END
       WHERE network=$1 AND holder=$2 AND fence=$3 AND expires_at>now()`, [lease.network, lease.runId, lease.fence, success, lease.slot]);
   }
-  async state(network: string, wallet: string): Promise<WalletState> {
-    const r = await this.pool.query('SELECT addresses,history,utxos,latest_snapshot AS snapshot FROM wallet_state WHERE network=$1 AND wallet=$2', [network, wallet]);
-    return r.rows[0] ?? { addresses: [], history: emptyHistory() };
+  async state(network: string, wallet: string) {
+    return this.readState(this.pool, network, wallet);
   }
   async providerError(network: string, provider: string, kind: string) {
     await this.pool.query(`INSERT INTO provider_errors(network,provider,total,last_kind) VALUES($1,$2,1,$3)
