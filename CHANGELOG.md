@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.3 — verified historical block-fee recovery (2026-10-08)
+
+- Add a paced, resumable capture/import command for missing historical block transaction medians from mempool.space's public block and summary endpoints. Check linked block hashes and the canonical anchor, transaction counts, fee totals and fractional fee rates; skip already verified blocks and append compact evidence idempotently.
+- Mark backfills as historical block evidence with their actual capture time. Exclude them from live recommendation quotes, pressure observations and tip selection. Scope 24-hour completeness to the window and its preceding block, so unrelated older gaps do not invalidate complete recent coverage.
+- Preserve existing observation storage and exports without a migration. Add capture, chain/reorg, import/idempotency, provenance and quote-freshness regressions.
+
 ## 2.7.2 — incremental wallet index reads (2026-10-08)
 
 - Reconcile the collector's stored wallet index by record: transfer only added, changed and removed transactions, reveal sets, address memberships, inventory and tip metadata. Reuse the index across function instances while checking its database revision on every collection.

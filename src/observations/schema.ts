@@ -24,4 +24,6 @@ export const feeContextSchema = z.object({
   pressure: feePressureSchema.optional(),
   completed: completedFeesSchema.optional(),
   persistence: z.enum(['durable', 'unavailable']).optional(),
-}).refine(v => v.status === 'available' ? v.rates !== null && v.error === null : v.rates === null);
+  kind: z.literal('historical_blocks').optional(),
+}).refine(v => v.status === 'available' ? v.rates !== null && v.error === null : v.rates === null)
+  .refine(v => !v.kind || (v.status === 'unavailable' && v.rates === null && !v.pressure && v.completed?.status === 'available'));

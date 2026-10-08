@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import { observeCompletedFees, observeFees } from '../src/chain/fees.js';
 import { summarizeFees } from '../src/read/fees.js';
 import { renderText } from '../src/read/render.js';
-import { completedBlockSchema } from '../src/observations/schema.js';
+import { completedBlockSchema, feeContextSchema } from '../src/observations/schema.js';
 import type { FeeContext } from '../src/types.js';
 import { hash } from './helpers.js';
 
@@ -125,4 +125,27 @@ it('shows an observed mined tip with a future header time without adding it to t
   const fees = summarizeFees([quote([verified(block(10, epoch + 60), 0.7), verified(block(9), 0.3)])], now);
   expect(fees.latestBlock).toMatchObject({ height: 10, medianSatVb: 0.7 });
   expect(fees.blocks24h).toMatchObject({ count: 1, average: 0.3, complete: false });
+});
+
+it('backfills block medians without replacing live quotes, quote coverage, pressure or the observed tip', () => {
+  const live = quote([verified(block(3), 0.7)], -60);
+  const historical: FeeContext = { provider: 'mempool', observedAt: now.toISOString(), kind: 'historical_blocks',
+    status: 'unavailable', rates: null, error: 'E_HISTORICAL_QUOTE_UNAVAILABLE',
+    completed: { observedAt: now.toISOString(), status: 'available', error: null,
+      blocks: [verified(block(1, epoch - 86401), 0.1), verified(block(2, epoch - 3600), 0.3)] } };
+  const before = summarizeFees([live], now), after = summarizeFees([live, historical], now);
+  expect(feeContextSchema.safeParse(historical).success).toBe(true);
+  expect(after).toMatchObject({ stale: false, observedAt: live.observedAt, rates: live.rates,
+    latestBlock: { height: 3, medianSatVb: 0.7 }, blocks24h: { count: 2, average: 0.5, complete: true } });
+  expect(after.quoteCoverageSeconds).toBe(before.quoteCoverageSeconds);
+  expect(after.averageRates24h).toEqual(before.averageRates24h);
+  expect(summarizeFees([historical], now)).toMatchObject({ stale: true, rates: null, latestBlock: null, blocks24h: { complete: false } });
+  expect(summarizeFees([live, { ...historical, completed: { ...historical.completed!, observedAt: new Date(now.getTime() + 1000).toISOString() } }], now).blocks24h.count).toBe(1);
+  expect(feeContextSchema.safeParse({ ...historical, status: 'available', rates: live.rates, error: null }).success).toBe(false);
+});
+
+it('does not call the current 24-hour block window partial because of a gap in older backfilled history', () => {
+  const fees = summarizeFees([quote([verified(block(1, epoch - 90000)), verified(block(4, epoch - 86401)),
+    verified(block(5, epoch - 500)), verified(block(6, epoch - 100))])], now);
+  expect(fees.blocks24h).toMatchObject({ complete: true, count: 2 });
 });
