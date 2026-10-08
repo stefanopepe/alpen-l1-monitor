@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.2 — incremental wallet index reads (2026-10-08)
+
+- Reconcile the collector's stored wallet index by record: transfer only added, changed and removed transactions, reveal sets, address memberships, inventory and tip metadata. Reuse the index across function instances while checking its database revision on every collection.
+- Preserve exact transaction/address ordering, pending-reveal retries, reorg handling, inventory validation and fee calculations. Keep the existing durable storage and atomic fenced writes; no migration or extra service is required.
+- Add SQL integration and transfer regressions for a thousand retained transactions, incremental additions/deletions, changed block hashes, stale cache pointers, eviction and wallet/network isolation. Cold cache fills remain bounded full reads; local CLI collection remains uncached.
+
 ## 2.7.1 — shared read caching and transfer reduction (2026-10-07)
 
 - Cache versioned read evidence in Vercel Runtime Cache across instances; coalesce concurrent misses with transaction-scoped locks. Reuse unchanged time groups and recompute freshness from the current clock.

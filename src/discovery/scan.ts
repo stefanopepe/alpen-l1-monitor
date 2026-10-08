@@ -33,7 +33,7 @@ export async function discover(view: ChainView, cfg: NetworkConfig, wallet: Wall
   }
   return { addresses, ceilingHit };
 }
-export interface PreviousInventory { addresses: readonly AddressRecord[]; utxos?: readonly Utxo[]; snapshot?: Snapshot }
+export interface PreviousInventory { addresses: readonly AddressRecord[]; utxos?: readonly Utxo[]; snapshot?: Pick<Snapshot, 'provider' | 'tip'> }
 export async function inventory(view: ChainView, addresses: readonly AddressRecord[], previous?: PreviousInventory): Promise<{ utxos: Utxo[]; tip: Tip }> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const tip = await view.tip(), utxos: Utxo[] = [], seen = new Set<string>();

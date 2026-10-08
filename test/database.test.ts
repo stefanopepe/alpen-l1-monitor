@@ -12,6 +12,7 @@ import { latestEeDa } from '../src/extract/eeDa.js';
 import { txSchema } from '../src/chain/schemas.js';
 import { config, hash, utxo } from './helpers.js';
 import { createReadCache } from '../src/read/cache.js';
+import { createWalletIndexReader, type IndexMeasurement } from '../src/db/walletIndex.js';
 const embedded = process.env.TEST_DATABASE_URL ? null : new PGlite();
 const real = process.env.TEST_DATABASE_URL ? new pg.Pool({ connectionString: process.env.TEST_DATABASE_URL }) : null;
 const query = async (sql: string, args?: unknown[]) => {
@@ -113,4 +114,15 @@ it.skipIf(!real)('coalesces cache fills across read-only transactions through Pg
   expect(a).toEqual(b);
   expect(fills.filter(name => name === 'status-wallets')).toHaveLength(1);
   expect(fills.filter(name => name === 'fee-contexts')).toHaveLength(1);
+});
+it.skipIf(!real)('shares the incremental wallet index across transactions through PgBouncer', async () => {
+  const values = new Map<string, unknown>(), reads: IndexMeasurement[] = [];
+  const backend = { get: async (key: string) => values.get(key) ?? null,
+    set: async (key: string, value: unknown) => { values.set(key, value); } };
+  const instance = () => createWalletIndexReader(backend, 'postgres-wallet-index', m => reads.push(m));
+  const [a, b] = await Promise.all([instance()(pool, 'mainnet', 'ee'), instance()(pool, 'mainnet', 'ee')]);
+  expect(a).toEqual(b);
+  expect(reads.filter(r => r.cold)).toHaveLength(1);
+  expect(reads.find(r => !r.cold)).toMatchObject({ changed: 0, removed: 0 });
+  expect(reads.find(r => !r.cold)!.resultBytes).toBeLessThan(100);
 });
